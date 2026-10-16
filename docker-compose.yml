@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: alanyerler-postgres
+    environment:
+      POSTGRES_USER: alanyerler
+      POSTGRES_PASSWORD: alanyerler
+      POSTGRES_DB: alanyerler
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - alanyerler_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alanyerler -d alanyerler"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    container_name: alanyerler-api
+    environment:
+      DATABASE_URL: postgresql://alanyerler:alanyerler@postgres:5432/alanyerler
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env icinde olmali}
+      JWT_EXPIRES_IN: 7d
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@alanyerler.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234}
+      ADMIN_NAME: ${ADMIN_NAME:-Yönetici}
+      UPLOAD_DIR: uploads
+      PORT: "3000"
+    volumes:
+      - alanyerler_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    container_name: alanyerler-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  alanyerler_pg:
+  alanyerler_uploads:

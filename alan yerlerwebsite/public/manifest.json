@@ -1,0 +1,21 @@
+{
+  "name": "Alan Yerler — Cihazını Sat",
+  "short_name": "Alan Yerler",
+  "description": "Uygulama indirmeden doğrudan tarayıcınızdan elektronik cihazlarınızı kurumsal mağazalara en yüksek teklifle satın.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B132B",
+  "theme_color": "#1D63FF",
+  "icons": [
+    {
+      "src": "/assets/categories/laptop.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/assets/categories/laptop.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

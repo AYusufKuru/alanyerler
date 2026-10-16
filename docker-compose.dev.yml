@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: alanyerler-postgres
+    environment:
+      POSTGRES_USER: alanyerler
+      POSTGRES_PASSWORD: alanyerler
+      POSTGRES_DB: alanyerler
+    ports:
+      - "5433:5432"
+    volumes:
+      - alanyerler_pg:/var/lib/postgresql/data
+
+volumes:
+  alanyerler_pg:

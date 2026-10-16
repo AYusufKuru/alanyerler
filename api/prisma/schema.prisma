@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  customer
+  admin
+}
+
+enum ListingStatus {
+  bekliyor
+  teklif_var
+  kapatildi
+}
+
+enum SenderRole {
+  customer
+  admin
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(customer)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  listings      Listing[]
+  conversations Conversation[]
+  messages      Message[]
+  favorites     Favorite[]
+  deviceTokens  DeviceToken[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  offersCreated Offer[]       @relation("OfferCreatedBy")
+
+  @@map("users")
+}
+
+model Category {
+  id          String       @id @default(uuid())
+  name        String
+  slug        String       @unique
+  deviceTypes DeviceType[]
+  listings    Listing[]
+
+  @@map("categories")
+}
+
+model DeviceType {
+  id         String   @id @default(uuid())
+  categoryId String   @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id])
+  name       String
+  slug       String   @unique
+  listings   Listing[]
+
+  @@map("device_types")
+}
+
+model Listing {
+  id           String         @id @default(uuid())
+  userId       String         @map("user_id")
+  user         User           @relation(fields: [userId], references: [id])
+  categoryId   String         @map("category_id")
+  category     Category       @relation(fields: [categoryId], references: [id])
+  deviceTypeId String         @map("device_type_id")
+  deviceType   DeviceType     @relation(fields: [deviceTypeId], references: [id])
+  title        String
+  specs        Json
+  condition    Json
+  status       ListingStatus  @default(bekliyor)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  photos        ListingPhoto[]
+  offers        Offer[]
+  conversations Conversation[]
+
+  @@map("listings")
+}
+
+model ListingPhoto {
+  id        String  @id @default(uuid())
+  listingId String  @map("listing_id")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  path      String
+  sortOrder Int     @map("sort_order")
+
+  @@map("listing_photos")
+}
+
+model Store {
+  id          String   @id @default(uuid())
+  name        String
+  logo        String?
+  cover       String?
+  city        String
+  address     String
+  about       String   @default("")
+  hours       Json
+  badges      Json
+  rating      Decimal? @db.Decimal(2, 1)
+  reviewCount Int?     @map("review_count")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  offers        Offer[]
+  conversations Conversation[]
+
+  @@map("stores")
+}
+
+model Offer {
+  id        String   @id @default(uuid())
+  listingId String   @map("listing_id")
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  storeId   String   @map("store_id")
+  store     Store    @relation(fields: [storeId], references: [id])
+  price     Decimal  @db.Decimal(12, 2)
+  currency  String   @default("TRY")
+  note      String?
+  createdBy String   @map("created_by")
+  creator   User     @relation("OfferCreatedBy", fields: [createdBy], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([listingId, storeId])
+  @@map("offers")
+}
+
+model Conversation {
+  id         String   @id @default(uuid())
+  listingId  String   @map("listing_id")
+  listing    Listing  @relation(fields: [listingId], references: [id])
+  storeId    String   @map("store_id")
+  store      Store    @relation(fields: [storeId], references: [id])
+  customerId String   @map("customer_id")
+  customer   User     @relation(fields: [customerId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  messages  Message[]
+  favorites Favorite[]
+
+  @@unique([listingId, storeId, customerId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderRole     SenderRole   @map("sender_role")
+  senderId       String       @map("sender_id")
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String
+  createdAt      DateTime     @default(now()) @map("created_at")
+  readAt         DateTime?    @map("read_at")
+
+  @@map("messages")
+}
+
+model Favorite {
+  userId         String       @map("user_id")
+  conversationId String       @map("conversation_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, conversationId])
+  @@map("favorites")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model DeviceToken {
+  id       String @id @default(uuid())
+  userId   String @map("user_id")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token    String @unique
+  platform String
+
+  @@map("device_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?  @map("actor_id")
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
