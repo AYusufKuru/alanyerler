@@ -3,7 +3,7 @@ import {
   Zap, ArrowRight, Cpu, HardDrive, Layers, Sparkles, BatteryCharging, 
   Monitor, PackageCheck, Shield, Gamepad2, Globe, Check, Edit3, X 
 } from 'lucide-react';
-import { DEVICE_SPECS_DATA } from '../data/wizardData';
+import { DEVICE_SPECS_DATA, choiceList, listed, seriesFor } from '../data/wizardData';
 
 export default function ValuationCalculator({ onSelectValuation }) {
   const [category, setCategory] = useState('laptop');
@@ -45,11 +45,10 @@ export default function ValuationCalculator({ onSelectValuation }) {
     const defaultSeries = seriesList[0];
     const modelsList = catData.models[defaultSeries] || [defaultSeries];
     const defaultModel = modelsList[0];
-    const cpusList = catData.cpus?.[defaultBrand] || catData.cpus?.[Object.keys(catData.cpus || {})[0]] || ['Standart İşlemci'];
-    const defaultCpu = cpusList[0];
-    const defaultGpu = catData.gpus?.[0] || 'Dahili Grafik İşlemci';
-    const defaultRam = catData.rams?.[1] || catData.rams?.[0] || '16 GB';
-    const defaultStorage = catData.storages?.[1] || catData.storages?.[0] || '512 GB SSD';
+    const defaultCpu = choiceList(catData, 'cpus', defaultSeries, defaultBrand)[0] || '';
+    const defaultGpu = choiceList(catData, 'gpus', defaultSeries, defaultBrand)[0] || '';
+    const defaultRam = choiceList(catData, 'rams', defaultSeries, defaultBrand)[0] || '';
+    const defaultStorage = choiceList(catData, 'storages', defaultSeries, defaultBrand)[0] || '';
 
     setBrand(defaultBrand);
     setModel(defaultModel);
@@ -65,9 +64,21 @@ export default function ValuationCalculator({ onSelectValuation }) {
     const seriesList = catData.series[newBrand] || Object.values(catData.series)[0] || ['Standart'];
     const defaultSeries = seriesList[0];
     const modelsList = catData.models[defaultSeries] || [defaultSeries];
-    setModel(modelsList[0]);
-    const cpusList = catData.cpus?.[newBrand] || catData.cpus?.[Object.keys(catData.cpus || {})[0]] || ['Standart İşlemci'];
-    setCpu(cpusList[0]);
+    const nextModel = modelsList[0];
+    setModel(nextModel);
+    setCpu(choiceList(catData, 'cpus', defaultSeries, newBrand)[0] || '');
+    setGpu(choiceList(catData, 'gpus', defaultSeries, newBrand)[0] || '');
+    setRam(choiceList(catData, 'rams', defaultSeries, newBrand)[0] || '');
+    setStorage(choiceList(catData, 'storages', defaultSeries, newBrand)[0] || '');
+  };
+
+  const applyModel = (nextModel) => {
+    const nextSeries = seriesFor(catData, brand, nextModel);
+    setModel(nextModel);
+    setCpu((current) => listed(current, choiceList(catData, 'cpus', nextSeries, brand)));
+    setGpu((current) => listed(current, choiceList(catData, 'gpus', nextSeries, brand)));
+    setRam((current) => listed(current, choiceList(catData, 'rams', nextSeries, brand)));
+    setStorage((current) => listed(current, choiceList(catData, 'storages', nextSeries, brand)));
   };
 
   // Dinamik Fiyatlama Hesaplama Motoru
@@ -224,7 +235,7 @@ export default function ValuationCalculator({ onSelectValuation }) {
         gpu: finalGpu,
         ram: finalRam,
         storage: finalStorage,
-        screenSize: catData.screenSizes?.[0] || 'Standart',
+        screenSize: choiceList(catData, 'screenSizes', seriesFor(catData, brand, model), brand)[0] || '',
         registrationStatus: isPhone ? registrationStatus : undefined,
         gamepads: isConsole ? gamepads : undefined,
         gpuSecurity: isGpu ? gpuSecurity : undefined
@@ -241,10 +252,11 @@ export default function ValuationCalculator({ onSelectValuation }) {
     });
   };
 
-  const availableCpus = catData.cpus?.[brand] || catData.cpus?.[Object.keys(catData.cpus || {})[0]] || ['Standart İşlemci'];
-  const availableGpus = catData.gpus || ['Dahili Grafik Çipi'];
-  const availableRams = catData.rams || ['8 GB', '16 GB', '32 GB', '64 GB'];
-  const availableStorages = catData.storages || ['256 GB SSD', '512 GB SSD', '1 TB SSD', '2 TB SSD'];
+  const activeSeries = seriesFor(catData, brand, model);
+  const availableCpus = choiceList(catData, 'cpus', activeSeries, brand);
+  const availableGpus = choiceList(catData, 'gpus', activeSeries, brand);
+  const availableRams = choiceList(catData, 'rams', activeSeries, brand);
+  const availableStorages = choiceList(catData, 'storages', activeSeries, brand);
 
   // Kategori Listesi
   const categoryTabs = [
@@ -382,7 +394,7 @@ export default function ValuationCalculator({ onSelectValuation }) {
               <select 
                 className="studio-select-input"
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => applyModel(e.target.value)}
               >
                 {catData.series[brand] ? (
                   catData.series[brand].flatMap(s => catData.models[s] || [s]).map(m => (
@@ -396,7 +408,7 @@ export default function ValuationCalculator({ onSelectValuation }) {
           </div>
 
           {/* İşlemci (CPU) - Bilgisayar ve Tablet Kategorilerinde */}
-          {(isComputer || category === 'tablet') && (
+          {(isComputer || category === 'tablet' || isPhone) && availableCpus.length > 0 && (
             <div className="studio-cell full-width">
               <div className="studio-label-with-icon">
                 <Cpu size={14} style={{ color: 'var(--brand-blue)' }} />
@@ -415,7 +427,7 @@ export default function ValuationCalculator({ onSelectValuation }) {
           )}
 
           {/* Ekran Kartı (GPU) - Laptop, Masaüstü ve GPU kategorisinde */}
-          {(['laptop', 'desktop', 'gpu'].includes(category)) && (
+          {availableGpus.length > 0 && ['laptop', 'macbook', 'desktop', 'mac-desktop', 'gpu'].includes(category) && (
             <div className="studio-cell full-width">
               <div className="studio-label-with-icon">
                 <Monitor size={14} style={{ color: '#8B5CF6' }} />

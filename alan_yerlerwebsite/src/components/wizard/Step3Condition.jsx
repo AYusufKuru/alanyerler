@@ -3,14 +3,17 @@ import { ArrowLeft, ArrowRight, BatteryCharging, HardDrive, PackageCheck, Shield
 import { CONDITION_OPTIONS } from '../../data/wizardData';
 
 export default function Step3Condition({ category, condition, onChangeCondition, onBack, onNext }) {
-  const currentBox = condition.boxAndInvoice !== undefined ? condition.boxAndInvoice : true;
-  const currentCosmetic = condition.cosmetic || "flawless";
+  const currentBox = condition.box !== undefined ? condition.box : condition.boxAndInvoice !== false;
+  const currentInvoice = condition.invoice !== undefined ? condition.invoice : condition.boxAndInvoice !== false;
+  const currentCosmetic = condition.cosmetic || "kusursuz";
   const currentAdapter = condition.adapter || "Orijinal";
   const currentWorking = condition.workingState || "perfect";
   const currentNotes = condition.notes || "";
 
-  // Sadece bataryası olan cihazlarda pil sağlığı sorulur
   const hasBattery = ['laptop', 'macbook', 'phone', 'iphone', 'tablet', 'ipad', 'watch', 'headphones'].includes(category);
+  const hasStorageHealth = ['laptop', 'macbook', 'desktop', 'mac-desktop'].includes(category);
+  const hasThermal = ['desktop', 'mac-desktop', 'gpu', 'console'].includes(category);
+  const hasAdapter = !['headphones', 'gpu'].includes(category);
 
   const handleNotesChange = (e) => {
     if (e.target.value.length <= 200) {
@@ -29,7 +32,7 @@ export default function Step3Condition({ category, condition, onChangeCondition,
 
       <div className="wizard-form-input-grid">
         {/* Pil Sağlığı (Yalnızca Bataryalı Cihazlarda) */}
-        {hasBattery ? (
+        {hasBattery && (
           <div className="wizard-form-cell">
             <label className="wizard-cell-label flex-label">
               <BatteryCharging size={16} style={{ color: 'var(--accent-emerald)' }} />
@@ -45,13 +48,15 @@ export default function Step3Condition({ category, condition, onChangeCondition,
               ))}
             </select>
           </div>
-        ) : (
+        )}
+
+        {hasThermal && (
           <div className="wizard-form-cell">
             <label className="wizard-cell-label flex-label">
               <Wind size={16} style={{ color: '#0EA5E9' }} />
               <span>Termal Durum & Fan Sağlığı *</span>
             </label>
-            <select 
+            <select
               className="wizard-select-control"
               value={condition.thermalHealth || "Sessiz & Serin Çalışıyor"}
               onChange={(e) => onChangeCondition({ ...condition, thermalHealth: e.target.value })}
@@ -63,7 +68,7 @@ export default function Step3Condition({ category, condition, onChangeCondition,
           </div>
         )}
 
-        {/* Depolama (SSD) Sağlığı */}
+        {hasStorageHealth && (
         <div className="wizard-form-cell">
           <label className="wizard-cell-label flex-label">
             <HardDrive size={16} style={{ color: 'var(--brand-blue)' }} />
@@ -79,25 +84,48 @@ export default function Step3Condition({ category, condition, onChangeCondition,
             ))}
           </select>
         </div>
+        )}
 
-        {/* Kutu / Fatura (Pill Switch) */}
         <div className="wizard-form-cell">
           <label className="wizard-cell-label flex-label">
             <PackageCheck size={16} style={{ color: '#F59E0B' }} />
-            <span>Orijinal Kutu ve Fatura</span>
+            <span>Orijinal Kutu</span>
           </label>
           <div className="wizard-pill-switch-group">
-            <button 
+            <button
               type="button"
-              className={`wizard-pill-switch-btn ${currentBox === true ? 'active' : ''}`}
-              onClick={() => onChangeCondition({ ...condition, boxAndInvoice: true })}
+              className={`wizard-pill-switch-btn ${currentBox ? 'active' : ''}`}
+              onClick={() => onChangeCondition({ ...condition, box: true })}
             >
-              ✓ Var (Orijinal)
+              Var
             </button>
-            <button 
+            <button
               type="button"
-              className={`wizard-pill-switch-btn ${currentBox === false ? 'active' : ''}`}
-              onClick={() => onChangeCondition({ ...condition, boxAndInvoice: false })}
+              className={`wizard-pill-switch-btn ${!currentBox ? 'active' : ''}`}
+              onClick={() => onChangeCondition({ ...condition, box: false })}
+            >
+              Yok
+            </button>
+          </div>
+        </div>
+
+        <div className="wizard-form-cell">
+          <label className="wizard-cell-label flex-label">
+            <PackageCheck size={16} style={{ color: '#F59E0B' }} />
+            <span>Fatura</span>
+          </label>
+          <div className="wizard-pill-switch-group">
+            <button
+              type="button"
+              className={`wizard-pill-switch-btn ${currentInvoice ? 'active' : ''}`}
+              onClick={() => onChangeCondition({ ...condition, invoice: true })}
+            >
+              Var
+            </button>
+            <button
+              type="button"
+              className={`wizard-pill-switch-btn ${!currentInvoice ? 'active' : ''}`}
+              onClick={() => onChangeCondition({ ...condition, invoice: false })}
             >
               Yok
             </button>
@@ -142,7 +170,7 @@ export default function Step3Condition({ category, condition, onChangeCondition,
           </div>
         </div>
 
-        {/* Şarj Adaptörü */}
+        {hasAdapter && (
         <div className="wizard-form-cell">
           <label className="wizard-cell-label flex-label">
             <Plug size={16} style={{ color: '#64748B' }} />
@@ -161,6 +189,7 @@ export default function Step3Condition({ category, condition, onChangeCondition,
             ))}
           </div>
         </div>
+        )}
 
         {/* Cihazın Çalışma Durumu */}
         <div className="wizard-form-cell">

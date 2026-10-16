@@ -34,9 +34,10 @@ class _SellWizardState extends State<SellWizard> {
   var _step = 0;
   var _specs = <String, String>{};
   var _condition = <String, String>{};
-  final _photos = <XFile>[];
+  final _slots = List<XFile?>.filled(5, null);
   final _picker = ImagePicker();
   var _busy = false;
+  int? _picking;
   var _sent = false;
   String? _error;
 
@@ -102,22 +103,67 @@ class _SellWizardState extends State<SellWizard> {
     });
   }
 
-  Future<void> _addPhotos(List<XFile> picked) async {
-    if (picked.isEmpty) return;
-    final next = [..._photos, ...picked];
+  List<XFile> get _filledPhotos => _slots.whereType<XFile>().toList();
+
+  Future<void> _capture(int index, ImageSource source) async {
+    setState(() => _picking = index);
+    try {
+      final file = await _picker.pickImage(source: source, imageQuality: 80);
+      if (!mounted || file == null) return;
+      setState(() {
+        _slots[index] = file;
+        _error = null;
+      });
+    } finally {
+      if (mounted) setState(() => _picking = null);
+    }
+  }
+
+  void _movePhoto(int index, int direction) {
+    final target = index + direction;
+    if (target < 0 || target >= _slots.length) return;
     setState(() {
-      _photos
-        ..clear()
-        ..addAll(next.take(5));
-      _error = next.length > 5 ? 'En fazla 5 fotoğraf eklenebilir.' : null;
+      final current = _slots[index];
+      _slots[index] = _slots[target];
+      _slots[target] = current;
     });
+  }
+
+  void _enlargePhoto(XFile file, String title) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800))),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                ],
+              ),
+            ),
+            SizedBox(
+              width: MediaQuery.sizeOf(context).width * 0.8,
+              height: MediaQuery.sizeOf(context).height * 0.6,
+              child: InteractiveViewer(
+                child: Image.file(File(file.path), fit: BoxFit.contain),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submit() async {
     final category = _category;
     final deviceType = _deviceType;
     if (category == null || deviceType == null) return;
-    if (_photos.length < 2) {
+    final photos = _filledPhotos;
+    if (photos.length < 2) {
       setState(() => _error = 'En az 2 fotoğraf ekleyin.');
       return;
     }
@@ -132,7 +178,7 @@ class _SellWizardState extends State<SellWizard> {
         deviceTypeId: deviceType.id,
         specs: _specs,
         condition: _condition,
-        photos: _photos,
+        photos: photos,
       );
       if (!mounted) return;
       setState(() {
@@ -398,6 +444,9 @@ class _SellWizardState extends State<SellWizard> {
                 _deviceType = choice.type;
                 _specs = {};
                 _condition = {};
+                for (var i = 0; i < _slots.length; i++) {
+                  _slots[i] = null;
+                }
                 _error = null;
               }),
             );
@@ -408,6 +457,8 @@ class _SellWizardState extends State<SellWizard> {
   }
 
   Widget _photoStep() {
+    final shots = photoShots(_deviceType?.slug);
+    final filled = _filledPhotos.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -417,72 +468,218 @@ class _SellWizardState extends State<SellWizard> {
         ),
         const SizedBox(height: 8),
         Text(
-          '${_photos.length}/5 · en az 2 fotoğraf',
+          '$filled/5 · en az 2 fotoğraf. Sırayla çekin.',
           style: const TextStyle(color: AppColors.muted),
         ),
+        if (_busy) ...[
+          const SizedBox(height: 12),
+          const LinearProgressIndicator(),
+          const SizedBox(height: 6),
+          const Text('Fotoğraflar yükleniyor', style: TextStyle(fontWeight: FontWeight.w700)),
+        ],
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _busy
-                    ? null
-                    : () async {
-                        final picked = await _picker.pickMultiImage(imageQuality: 80);
-                        await _addPhotos(picked);
-                      },
-                icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('Galeri'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _busy
-                    ? null
-                    : () async {
-                        final picked = await _picker.pickImage(
-                          source: ImageSource.camera,
-                          imageQuality: 80,
-                        );
-                        if (picked != null) await _addPhotos([picked]);
-                      },
-                icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Kamera'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        for (var index = 0; index < _photos.length; index++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
+        for (var index = 0; index < shots.length; index++)
+          _PhotoShotCard(
+            index: index,
+            shot: shots[index],
+            file: _slots[index],
+            busy: _busy,
+            picking: _picking == index,
+            onGallery: () => _capture(index, ImageSource.gallery),
+            onCamera: () => _capture(index, ImageSource.camera),
+            onDelete: () => setState(() => _slots[index] = null),
+            onUp: index == 0 ? null : () => _movePhoto(index, -1),
+            onDown: index == shots.length - 1 ? null : () => _movePhoto(index, 1),
+            onEnlarge: _slots[index] == null ? null : () => _enlargePhoto(_slots[index]!, shots[index].title),
+          ),
+      ],
+    );
+  }
+}
+
+class PhotoShot {
+  const PhotoShot({required this.title, required this.prompt, this.optional = false});
+
+  final String title;
+  final String prompt;
+  final bool optional;
+}
+
+List<PhotoShot> photoShots(String? slug) {
+  PhotoShot shot(String title, String prompt, {bool optional = false}) {
+    return PhotoShot(title: title, prompt: prompt, optional: optional);
+  }
+
+  const defect = PhotoShot(
+    title: 'Kusurlu bölge',
+    prompt: 'Varsa kusurlu bölgeyi yakın çekin. Yoksa bu kare boş kalabilir.',
+    optional: true,
+  );
+  return switch (slug) {
+    'iphone' || 'android-telefon' => [
+      shot('Ön yüz', 'Cihazın ön yüzünü çekin.'),
+      shot('Arka yüz', 'Cihazın arka yüzünü çekin.'),
+      shot('Kenarlar', 'Sağ ve sol kenarları çekin.'),
+      shot('Ekran açık', 'Ekranı açıkken çekin.'),
+      defect,
+    ],
+    'laptop' || 'macbook' => [
+      shot('Ekran açık', 'Ekranı açıkken önden çekin.'),
+      shot('Klavye', 'Klavyeyi ve üst gövdeyi çekin.'),
+      shot('Kapak', 'Kapağın dışını çekin.'),
+      shot('Kenarlar', 'Portların olduğu kenarı çekin.'),
+      defect,
+    ],
+    'masaustu' || 'mac-masaustu' => [
+      shot('Ön yüz', 'Kasanın önünü çekin.'),
+      shot('Yan panel', 'Yan kapağı çekin.'),
+      shot('Arka portlar', 'Arkadaki bağlantıları çekin.'),
+      shot('İç donanım', 'Kapak açıksa içini çekin.'),
+      defect,
+    ],
+    'ipad' || 'android-tablet' => [
+      shot('Ön yüz', 'Ekranı kapalıyken önden çekin.'),
+      shot('Arka yüz', 'Arka kapağı çekin.'),
+      shot('Kenarlar', 'Kenarları çekin.'),
+      shot('Ekran açık', 'Ekranı açıkken çekin.'),
+      defect,
+    ],
+    'playstation' || 'xbox' || 'nintendo' => [
+      shot('Ön yüz', 'Konsolun önünü çekin.'),
+      shot('Arka yüz', 'Portların olduğu arkayı çekin.'),
+      shot('Kollar', 'Kolları çekin.'),
+      shot('Kablolar', 'Güç ve görüntü kablosunu çekin.'),
+      defect,
+    ],
+    'nvidia' || 'amd-ekran-karti' => [
+      shot('Fanlar', 'Fanların olduğu yüzü çekin.'),
+      shot('Arka plaka', 'Metal arka plakayı çekin.'),
+      shot('Portlar', 'Görüntü çıkışlarını çekin.'),
+      shot('Bağlantı', 'Altın bağlantı şeridini çekin.'),
+      defect,
+    ],
+    'apple-watch' || 'diger-saat' => [
+      shot('Ön cam', 'Ön camı çekin.'),
+      shot('Arka sensör', 'Arka sensörü çekin.'),
+      shot('Kordon', 'Kordonu çekin.'),
+      shot('Şarj', 'Şarj kablosunu çekin.'),
+      defect,
+    ],
+    'kulaklik' => [
+      shot('Kulaklıklar', 'Kulak yastıklarını çekin.'),
+      shot('Bant', 'Kafa bandını ve menteşeleri çekin.'),
+      shot('Kılıf', 'Kılıfı veya kutuyu çekin.'),
+      shot('Uçlar', 'Yedek uç veya kabloyu çekin.'),
+      defect,
+    ],
+    _ => [
+      shot('Ön yüz', 'Cihazın ön yüzünü çekin.'),
+      shot('Arka yüz', 'Cihazın arka yüzünü çekin.'),
+      shot('Kenarlar', 'Kenarları çekin.'),
+      shot('Detay', 'Ekran veya bağlantıları çekin.'),
+      defect,
+    ],
+  };
+}
+
+class _PhotoShotCard extends StatelessWidget {
+  const _PhotoShotCard({
+    required this.index,
+    required this.shot,
+    required this.file,
+    required this.busy,
+    required this.picking,
+    required this.onGallery,
+    required this.onCamera,
+    required this.onDelete,
+    required this.onUp,
+    required this.onDown,
+    required this.onEnlarge,
+  });
+
+  final int index;
+  final PhotoShot shot;
+  final XFile? file;
+  final bool busy;
+  final bool picking;
+  final VoidCallback onGallery;
+  final VoidCallback onCamera;
+  final VoidCallback onDelete;
+  final VoidCallback? onUp;
+  final VoidCallback? onDown;
+  final VoidCallback? onEnlarge;
+
+  @override
+  Widget build(BuildContext context) {
+    final locked = busy || picking;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4EBF5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${index + 1}. ${shot.title}', style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(
+            shot.prompt,
+            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+          ),
+          const SizedBox(height: 10),
+          if (picking)
+            const LinearProgressIndicator()
+          else if (file != null)
+            Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.file(
-                    File(_photos[index].path),
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
+                GestureDetector(
+                  onTap: onEnlarge,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(File(file!.path), width: 72, height: 72, fit: BoxFit.cover),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Fotoğraf ${index + 1}')),
-                IconButton(
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() {
-                            _photos.removeAt(index);
-                            _error = null;
-                          }),
-                  icon: const Icon(Icons.close),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Wrap(
+                    spacing: 4,
+                    children: [
+                      IconButton(onPressed: locked ? null : onEnlarge, icon: const Icon(Icons.open_in_full), tooltip: 'Büyüt'),
+                      IconButton(onPressed: locked ? null : onGallery, icon: const Icon(Icons.photo_library_outlined), tooltip: 'Galeriden değiştir'),
+                      IconButton(onPressed: locked ? null : onCamera, icon: const Icon(Icons.photo_camera_outlined), tooltip: 'Yeniden çek'),
+                      IconButton(onPressed: locked ? null : onDelete, icon: const Icon(Icons.delete_outline), tooltip: 'Sil'),
+                      IconButton(onPressed: locked ? null : onUp, icon: const Icon(Icons.arrow_upward), tooltip: 'Yukarı'),
+                      IconButton(onPressed: locked ? null : onDown, icon: const Icon(Icons.arrow_downward), tooltip: 'Aşağı'),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: locked ? null : onGallery,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Galeri'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: locked ? null : onCamera,
+                    icon: const Icon(Icons.photo_camera_outlined),
+                    label: const Text('Kamera'),
+                  ),
                 ),
               ],
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

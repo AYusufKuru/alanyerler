@@ -119,7 +119,8 @@ function specValue(key, typeSlug, specs) {
 function conditionValue(key, specs, condition) {
   if (key === 'pilSagligi') return healthBucket(condition.batteryHealth);
   if (key === 'depolamaSagligi') return healthBucket(condition.ssdHealth);
-  if (key === 'kutuFatura') return condition.boxAndInvoice === false ? 'Yok' : 'Var';
+  if (key === 'kutu') return yesNo(condition.box ?? condition.boxAndInvoice);
+  if (key === 'fatura') return yesNo(condition.invoice ?? condition.boxAndInvoice);
   if (key === 'kalanGaranti') return warrantyLabel(condition.warranty);
   if (key === 'kozmetik') return cosmeticLabel(condition.cosmeticLabel);
   if (key === 'adaptor') return adapterLabel(condition.adapter);
@@ -173,12 +174,18 @@ function warrantyLabel(raw) {
   return 'Yok';
 }
 
+function yesNo(value) {
+  return value === false ? 'Yok' : 'Var';
+}
+
 function cosmeticLabel(raw) {
   const text = `${raw || ''}`.toLocaleLowerCase('tr');
-  if (text.includes('kötü') || text.includes('kotu')) return 'Kötü';
+  if (text.includes('hasar') || text.includes('kötü') || text.includes('kotu')) return 'Hasarlı';
   if (text.includes('orta')) return 'Orta';
-  if (text.includes('iyi') && !text.includes('sıfır') && !text.includes('sifir')) return 'İyi';
-  return 'Sıfır gibi';
+  if (text.includes('çok') || text.includes('cok')) return 'Çok İyi';
+  if (text.includes('kusursuz') || text.includes('sıfır') || text.includes('sifir')) return 'Kusursuz';
+  if (text.includes('iyi')) return 'İyi';
+  return 'Kusursuz';
 }
 
 function adapterLabel(raw) {

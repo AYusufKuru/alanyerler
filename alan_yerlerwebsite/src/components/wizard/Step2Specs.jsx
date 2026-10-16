@@ -1,27 +1,49 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, RefreshCw, Cpu, Monitor, Layers, HardDrive, Smartphone, Check, Globe, Gamepad2, Shield, Edit3 } from 'lucide-react';
-import { DEVICE_SPECS_DATA, CONDITION_OPTIONS } from '../../data/wizardData';
+import { DEVICE_SPECS_DATA, CONDITION_OPTIONS, choiceList, listed } from '../../data/wizardData';
 
 export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onNext, onResetCategory }) {
   const normalizedCategory = category || "laptop";
   const data = DEVICE_SPECS_DATA[normalizedCategory] || DEVICE_SPECS_DATA.laptop;
 
-  const currentBrand = specs.brand || data.brands[0];
-  const availableSeries = data.series[currentBrand] || Object.values(data.series)[0] || ["Standart"];
-  const currentSeries = specs.series || availableSeries[0];
+  const currentBrand = data.brands.includes(specs.brand) ? specs.brand : data.brands[0];
+  const availableSeries = data.series[currentBrand] || ["Standart"];
+  const currentSeries = listed(specs.series, availableSeries);
   const availableModels = data.models[currentSeries] || [currentSeries];
-  const availableCpus = data.cpus?.[currentBrand] || data.cpus?.[Object.keys(data.cpus || {})[0]] || ["Standart İşlemci"];
-  const availableGpus = data.gpus || [];
-  const availableRams = data.rams || ["8 GB", "16 GB", "32 GB", "64 GB"];
-  const availableStorages = data.storages || ["256 GB SSD", "512 GB SSD", "1 TB SSD", "2 TB SSD"];
+  const currentModel = listed(specs.model, availableModels);
+  const availableCpus = choiceList(data, 'cpus', currentSeries, currentBrand);
+  const availableGpus = choiceList(data, 'gpus', currentSeries, currentBrand);
+  const availableRams = choiceList(data, 'rams', currentSeries, currentBrand);
+  const availableStorages = choiceList(data, 'storages', currentSeries, currentBrand);
+  const availableScreens = choiceList(data, 'screenSizes', currentSeries, currentBrand);
+  const cpuValue = listed(specs.cpu, availableCpus);
+  const gpuValue = listed(specs.gpu, availableGpus);
+  const ramValue = listed(specs.ram, availableRams);
+  const storageValue = listed(specs.storage, availableStorages);
+  const screenValue = listed(specs.screenSize, availableScreens);
 
   const [isManualInput, setIsManualInput] = useState(false);
 
   const isPhone = normalizedCategory === 'phone';
   const isConsole = normalizedCategory === 'console';
   const isGpu = normalizedCategory === 'gpu';
-  const hasGpu = ['laptop', 'desktop', 'gpu'].includes(normalizedCategory);
-  const isComputer = ['laptop', 'macbook', 'desktop', 'mac-desktop'].includes(normalizedCategory);
+  const showCpu = availableCpus.length > 0 && !isConsole && !isGpu && !['watch', 'headphones'].includes(normalizedCategory);
+  const showGpu = availableGpus.length > 0 && ['laptop', 'macbook', 'desktop', 'mac-desktop', 'gpu'].includes(normalizedCategory);
+
+  useEffect(() => {
+    const next = {
+      brand: currentBrand,
+      series: currentSeries,
+      model: currentModel,
+      cpu: cpuValue,
+      gpu: gpuValue,
+      ram: ramValue,
+      storage: storageValue,
+      screenSize: screenValue,
+    };
+    const same = Object.keys(next).every((key) => (specs[key] || '') === (next[key] || ''));
+    if (!same) onChangeSpecs({ ...specs, ...next });
+  }, [normalizedCategory, currentBrand, currentSeries]);
 
   const categoryImages = {
     laptop: '/assets/categories/laptop.jpg',
@@ -38,29 +60,29 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
     headphones: '/assets/categories/headphones.jpg'
   };
 
+  const specsFor = (brand, series, model) => ({
+    ...specs,
+    brand,
+    series,
+    model,
+    cpu: listed(specs.cpu, choiceList(data, 'cpus', series, brand)),
+    gpu: listed(specs.gpu, choiceList(data, 'gpus', series, brand)),
+    ram: listed(specs.ram, choiceList(data, 'rams', series, brand)),
+    storage: listed(specs.storage, choiceList(data, 'storages', series, brand)),
+    screenSize: listed(specs.screenSize, choiceList(data, 'screenSizes', series, brand)),
+  });
+
   const handleBrandChange = (e) => {
     const brand = e.target.value;
-    const seriesList = data.series[brand] || Object.values(data.series)[0] || ["Standart"];
-    const series = seriesList[0];
-    const modelsList = data.models[series] || [series];
-    const newCpuList = data.cpus?.[brand] || data.cpus?.[Object.keys(data.cpus || {})[0]] || ["Standart İşlemci"];
-    onChangeSpecs({
-      ...specs,
-      brand,
-      series,
-      model: modelsList[0],
-      cpu: newCpuList[0]
-    });
+    const series = (data.series[brand] || ["Standart"])[0];
+    const model = (data.models[series] || [series])[0];
+    onChangeSpecs(specsFor(brand, series, model));
   };
 
   const handleSeriesChange = (e) => {
     const series = e.target.value;
-    const modelsList = data.models[series] || [series];
-    onChangeSpecs({
-      ...specs,
-      series,
-      model: modelsList[0]
-    });
+    const model = (data.models[series] || [series])[0];
+    onChangeSpecs(specsFor(currentBrand, series, model));
   };
 
   return (
@@ -168,7 +190,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
             <label className="wizard-cell-label">Marka *</label>
             <select 
               className="wizard-select-control"
-              value={specs.brand || currentBrand}
+              value={currentBrand}
               onChange={handleBrandChange}
             >
               {data.brands.map(b => (
@@ -182,7 +204,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
             <label className="wizard-cell-label">Seri / Model Ailesi *</label>
             <select 
               className="wizard-select-control"
-              value={specs.series || currentSeries}
+              value={currentSeries}
               onChange={handleSeriesChange}
             >
               {availableSeries.map(s => (
@@ -196,7 +218,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
             <label className="wizard-cell-label">Tam Model Adı *</label>
             <select 
               className="wizard-select-control highlight-focus"
-              value={specs.model || availableModels[0]}
+              value={currentModel}
               onChange={(e) => onChangeSpecs({ ...specs, model: e.target.value })}
             >
               {availableModels.map(m => (
@@ -206,7 +228,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
           </div>
 
           {/* İşlemci (CPU) */}
-          {data.cpus && (isComputer || normalizedCategory === 'tablet') && (
+          {showCpu && (
             <div className="wizard-form-cell full-width">
               <label className="wizard-cell-label flex-label">
                 <Cpu size={15} style={{ color: 'var(--brand-blue)' }} />
@@ -214,7 +236,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
               </label>
               <select 
                 className="wizard-select-control"
-                value={specs.cpu || availableCpus[0]}
+                value={cpuValue}
                 onChange={(e) => onChangeSpecs({ ...specs, cpu: e.target.value })}
               >
                 {availableCpus.map(c => (
@@ -225,7 +247,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
           )}
 
           {/* Ekran Kartı (GPU) - Varsa */}
-          {hasGpu && availableGpus.length > 0 && (
+          {showGpu && (
             <div className="wizard-form-cell full-width">
               <label className="wizard-cell-label flex-label">
                 <Monitor size={15} style={{ color: '#8B5CF6' }} />
@@ -233,7 +255,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
               </label>
               <select 
                 className="wizard-select-control"
-                value={specs.gpu || availableGpus[0]}
+                value={gpuValue}
                 onChange={(e) => onChangeSpecs({ ...specs, gpu: e.target.value })}
               >
                 {availableGpus.map(g => (
@@ -252,7 +274,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
               </label>
               <div className="wizard-interactive-pills-row">
                 {availableRams.map(r => {
-                  const isSelected = (specs.ram || availableRams[0]) === r;
+                  const isSelected = ramValue === r;
                   return (
                     <button
                       key={r}
@@ -278,7 +300,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
               </label>
               <div className="wizard-interactive-pills-row">
                 {availableStorages.map(st => {
-                  const isSelected = (specs.storage || availableStorages[0]) === st;
+                  const isSelected = storageValue === st;
                   return (
                     <button
                       key={st}
@@ -374,7 +396,7 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
           )}
 
           {/* Ekran Boyutu (Varsa) */}
-          {data.screenSizes && data.screenSizes.length > 0 && !isGpu && !isConsole && (
+          {availableScreens.length > 0 && !isGpu && (
             <div className="wizard-form-cell full-width">
               <label className="wizard-cell-label flex-label">
                 <Smartphone size={15} style={{ color: '#0EA5E9' }} />
@@ -382,10 +404,10 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
               </label>
               <select 
                 className="wizard-select-control"
-                value={specs.screenSize || data.screenSizes[0]}
+                value={screenValue}
                 onChange={(e) => onChangeSpecs({ ...specs, screenSize: e.target.value })}
               >
-                {data.screenSizes.map(sc => (
+                {availableScreens.map(sc => (
                   <option key={sc} value={sc}>{sc}</option>
                 ))}
               </select>
@@ -398,12 +420,12 @@ export default function Step2Specs({ category, specs, onChangeSpecs, onBack, onN
       <div className="wizard-live-specs-summary-bar">
         <span className="summary-bar-label">Seçilen Donanım Yapılandırması:</span>
         <div className="summary-chips-wrap">
-          <span className="summary-micro-chip"><strong>{specs.brand || 'Cihaz'}</strong></span>
-          <span className="summary-micro-chip">{specs.model || specs.series}</span>
-          {specs.cpu && <span className="summary-micro-chip blue">{specs.cpu}</span>}
-          {specs.ram && <span className="summary-micro-chip indigo">{specs.ram}</span>}
-          {specs.storage && <span className="summary-micro-chip green">{specs.storage}</span>}
-          {specs.gpu && specs.gpu !== 'Dahili Grafik Çipi' && <span className="summary-micro-chip purple">{specs.gpu}</span>}
+          <span className="summary-micro-chip"><strong>{currentBrand || 'Cihaz'}</strong></span>
+          <span className="summary-micro-chip">{currentModel || currentSeries}</span>
+          {showCpu && cpuValue && <span className="summary-micro-chip blue">{cpuValue}</span>}
+          {ramValue && !isConsole && !isGpu && <span className="summary-micro-chip indigo">{ramValue}</span>}
+          {storageValue && !isGpu && <span className="summary-micro-chip green">{storageValue}</span>}
+          {showGpu && gpuValue && !/dahili/i.test(gpuValue) && <span className="summary-micro-chip purple">{gpuValue}</span>}
           {specs.registrationStatus && <span className="summary-micro-chip">{specs.registrationStatus.split('(')[0]}</span>}
           {specs.gamepads && <span className="summary-micro-chip indigo">{specs.gamepads}</span>}
         </div>

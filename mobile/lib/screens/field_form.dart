@@ -152,6 +152,8 @@ IconData _fieldIcon(String key, String? value) {
     'pilSagligi' => Icons.battery_charging_full,
     'depolamaSagligi' => Icons.sd_storage_rounded,
     'kutuFatura' => Icons.description_outlined,
+    'kutu' => Icons.inventory_2_outlined,
+    'fatura' => Icons.receipt_long_outlined,
     'kalanGaranti' => Icons.shield_outlined,
     'kozmetik' => Icons.auto_awesome_outlined,
     'adaptor' => Icons.power_outlined,

@@ -1,67 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, Upload, Trash2, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Camera, Maximize2, Trash2, Upload, Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function Step4Photos({ category, specs, condition, photos, onPhotosChange, onBack, onSubmit, error }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preview, setPreview] = useState(null);
   const inputRef = useRef(null);
   const slotRef = useRef(0);
-
-  // Kategoriye özel akıllı fotoğraf yükleme rehberi
-  const getCategoryPhotoGuide = (cat) => {
-    switch (cat) {
-      case 'phone':
-        return [
-          { id: "p1", title: "Ön Ekran (Açık ve Çiziksiz)", url: "/assets/categories/phone.jpg" },
-          { id: "p2", title: "Arka Kapak & Kamera Lensleri", url: "/assets/categories/phone.jpg" },
-          { id: "p3", title: "Yan Çerçeve & Köşeler", url: "/assets/categories/phone.jpg" },
-          { id: "p4", title: "Kutu, Fatura & Şarj Kablosu", url: "/assets/categories/phone.jpg" }
-        ];
-      case 'console':
-        return [
-          { id: "p1", title: "Konsol Ana Gövde (Ön/Üst)", url: "/assets/categories/console.jpg" },
-          { id: "p2", title: "Oyun Kolu / Gamepad", url: "/assets/categories/console.jpg" },
-          { id: "p3", title: "HDMI & Güç Kabloları", url: "/assets/categories/console.jpg" },
-          { id: "p4", title: "Kutu & Fatura", url: "/assets/categories/console.jpg" }
-        ];
-      case 'gpu':
-        return [
-          { id: "p1", title: "Ön Fanlar & Soğutma Bloğu", url: "/assets/categories/gpu.jpg" },
-          { id: "p2", title: "Arka Metal Plaka (Backplate)", url: "/assets/categories/gpu.jpg" },
-          { id: "p3", title: "PCIe & Görüntü Portları", url: "/assets/categories/gpu.jpg" },
-          { id: "p4", title: "Orijinal Kutu & Garanti Belgesi", url: "/assets/categories/gpu.jpg" }
-        ];
-      case 'tablet':
-        return [
-          { id: "p1", title: "Ekran & Çerçeve Durumu", url: "/assets/categories/tablet.jpg" },
-          { id: "p2", title: "Arka Kapak & Kamera", url: "/assets/categories/tablet.jpg" },
-          { id: "p3", title: "Kalem / Klavye (Varsa)", url: "/assets/categories/tablet.jpg" },
-          { id: "p4", title: "Kutu & Adaptör", url: "/assets/categories/tablet.jpg" }
-        ];
-      case 'watch':
-        return [
-          { id: "p1", title: "Ön Cam & Titanyum/Çelik Kasa", url: "/assets/categories/watch.jpg" },
-          { id: "p2", title: "Arka Sensör Alanı", url: "/assets/categories/watch.jpg" },
-          { id: "p3", title: "Orijinal Kordon / Kayış", url: "/assets/categories/watch.jpg" },
-          { id: "p4", title: "Manyetik Hızlı Şarj Kablosu", url: "/assets/categories/watch.jpg" }
-        ];
-      case 'headphones':
-        return [
-          { id: "p1", title: "Kulak Yastıkları (Earpads)", url: "/assets/categories/headphones.jpg" },
-          { id: "p2", title: "Kafa Bandı & Menteşeler", url: "/assets/categories/headphones.jpg" },
-          { id: "p3", title: "Taşıma Çantası / Kılıf", url: "/assets/categories/headphones.jpg" },
-          { id: "p4", title: "Kutu & Orijinal Kablolar", url: "/assets/categories/headphones.jpg" }
-        ];
-      default: // laptop & desktop
-        return [
-          { id: "p1", title: "Ön Yüz / Ekran", url: "/assets/categories/laptop.jpg" },
-          { id: "p2", title: "Klavye & Üst Gövde", url: "/assets/hero-devices.jpg" },
-          { id: "p3", title: "Kapak & Arka Yüzey", url: "/assets/categories/laptop.jpg" },
-          { id: "p4", title: "Kutu, Fatura & Adaptör", url: "/assets/categories/laptop.jpg" }
-        ];
-    }
-  };
-
-  const samplePhotoList = getCategoryPhotoGuide(category);
+  const shots = photoShots(category);
+  const slots = Array.from({ length: shots.length }, (_, index) => photos[index] || null);
+  const filledCount = slots.filter(Boolean).length;
 
   const getEstimatedRange = () => {
     switch (category) {
@@ -76,20 +23,43 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
     }
   };
 
+  const sampleUrl = {
+    phone: '/assets/categories/phone.jpg',
+    iphone: '/assets/categories/phone.jpg',
+    console: '/assets/categories/console.jpg',
+    gpu: '/assets/categories/gpu.jpg',
+    tablet: '/assets/categories/tablet.jpg',
+    ipad: '/assets/categories/tablet.jpg',
+    watch: '/assets/categories/watch.jpg',
+    headphones: '/assets/categories/headphones.jpg',
+  }[category] || '/assets/categories/laptop.jpg';
+
   const handleFillSamples = async () => {
-    const files = await Promise.all(samplePhotoList.map(async (slot, index) => {
-      const response = await fetch(slot.url);
-      const blob = await response.blob();
+    const response = await fetch(sampleUrl);
+    const blob = await response.blob();
+    const files = shots.map((_, index) => {
       const file = new File([blob], `ornek-${index + 1}.jpg`, { type: blob.type || 'image/jpeg' });
-      return { file, url: slot.url };
-    }));
+      return { file, url: sampleUrl };
+    });
     onPhotosChange(files);
   };
 
+  const writeSlots = (next) => onPhotosChange(next);
+
   const handleRemovePhoto = (index) => {
-    const updated = [...photos];
-    updated.splice(index, 1);
-    onPhotosChange(updated);
+    const next = [...slots];
+    next[index] = null;
+    writeSlots(next);
+  };
+
+  const movePhoto = (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= slots.length) return;
+    const next = [...slots];
+    const current = next[index];
+    next[index] = next[target];
+    next[target] = current;
+    writeSlots(next);
   };
 
   const openSlot = (index) => {
@@ -132,12 +102,18 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
       <div className="wizard-substep-head">
         <h3 className="wizard-substep-title">Cihazınızın Fotoğraflarını Ekleyin</h3>
         <p className="wizard-substep-desc">
-          Doğru ve net fotoğraflar eklemek tekliflerin hızını ve tutarını %40 artırır.
+          {filledCount}/5 · en az 2 fotoğraf. Her karede yazan yeri çekin.
         </p>
       </div>
 
-      {/* Fotoğraf Yükleme Slotları */}
-      <div className="wizard-photo-slots-grid">
+      {isSubmitting && (
+        <div className="wizard-upload-progress">
+          <div className="wizard-upload-bar" />
+          <span>Fotoğraflar yükleniyor</span>
+        </div>
+      )}
+
+      <div className="wizard-photo-guide-list">
         <input
           ref={inputRef}
           type="file"
@@ -145,36 +121,41 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
           hidden
           onChange={handleFile}
         />
-        {samplePhotoList.map((slot, index) => {
-          const uploadedUrl = photos[index]?.url;
+        {shots.map((shot, index) => {
+          const uploaded = slots[index];
           return (
-            <div key={slot.id} className={`wizard-photo-slot ${uploadedUrl ? 'filled' : ''}`}>
-              {uploadedUrl ? (
-                <div className="wizard-photo-preview-wrap">
-                  <img src={uploadedUrl} alt={slot.title} className="wizard-uploaded-img" />
-                  <span className="wizard-photo-badge">{slot.title}</span>
-                  <button 
-                    type="button" 
-                    className="wizard-photo-remove-action"
-                    onClick={() => handleRemovePhoto(index)}
-                    title="Fotoğrafı Kaldır"
-                  >
-                    <Trash2 size={14} />
+            <div key={shot.title} className={`wizard-photo-guide-row ${uploaded ? 'filled' : ''}`}>
+              <div className="wizard-photo-guide-copy">
+                <strong>{index + 1}. {shot.title}</strong>
+                <span>{shot.prompt}</span>
+              </div>
+              {uploaded ? (
+                <div className="wizard-photo-guide-actions">
+                  <button type="button" className="wizard-photo-thumb" onClick={() => setPreview(uploaded.url)} aria-label="Büyüt">
+                    <img src={uploaded.url} alt={shot.title} />
+                    <Maximize2 size={14} />
                   </button>
+                  <button type="button" onClick={() => openSlot(index)} aria-label="Yeniden çek"><Camera size={16} /></button>
+                  <button type="button" onClick={() => handleRemovePhoto(index)} aria-label="Sil"><Trash2 size={16} /></button>
+                  <button type="button" onClick={() => movePhoto(index, -1)} disabled={index === 0} aria-label="Yukarı"><ArrowUp size={16} /></button>
+                  <button type="button" onClick={() => movePhoto(index, 1)} disabled={index === shots.length - 1} aria-label="Aşağı"><ArrowDown size={16} /></button>
                 </div>
               ) : (
-                <div className="wizard-photo-placeholder" onClick={() => openSlot(index)}>
-                  <div className="placeholder-icon-circle">
-                    <Upload size={20} />
-                  </div>
-                  <span className="placeholder-title">{slot.title}</span>
-                  <span className="placeholder-hint">Görsel Seç</span>
-                </div>
+                <button type="button" className="wizard-photo-guide-pick" onClick={() => openSlot(index)}>
+                  <Upload size={16} />
+                  <span>Fotoğraf seç</span>
+                </button>
               )}
             </div>
           );
         })}
       </div>
+
+      {preview && (
+        <button type="button" className="wizard-photo-lightbox" onClick={() => setPreview(null)} aria-label="Kapat">
+          <img src={preview} alt="" />
+        </button>
+      )}
 
       {/* Hızlı Test İçin Örnek Yükleme Butonu */}
       <div className="wizard-sample-action-bar">
@@ -218,10 +199,10 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
           {specs.gpuSecurity && (
             <span className="recap-chip-item">{specs.gpuSecurity}</span>
           )}
-          <span className="recap-chip-item">💾 SSD: {condition.ssdHealth || "%100"}</span>
-          <span className="recap-chip-item">📦 Kutu/Fatura: {condition.boxAndInvoice ? "Var" : "Yok"}</span>
+          <span className="recap-chip-item">📦 Kutu: {condition.box === false ? 'Yok' : 'Var'}</span>
+          <span className="recap-chip-item">🧾 Fatura: {condition.invoice === false ? 'Yok' : 'Var'}</span>
           <span className="recap-chip-item">🛡️ Garanti: {condition.warranty || "6 - 12 Ay"}</span>
-          <span className="recap-chip-item">✨ Durum: {condition.cosmeticLabel || "Sıfır Gibi"}</span>
+          <span className="recap-chip-item">✨ Durum: {condition.cosmeticLabel || "Kusursuz"}</span>
         </div>
 
         <div className="recap-security-assurance">
@@ -252,4 +233,87 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
       </div>
     </div>
   );
+}
+
+function photoShots(category) {
+  const defect = { title: 'Kusurlu bölge', prompt: 'Varsa kusurlu bölgeyi yakın çekin. Yoksa bu kare boş kalabilir.' };
+  if (category === 'phone' || category === 'iphone') {
+    return [
+      { title: 'Ön yüz', prompt: 'Cihazın ön yüzünü çekin.' },
+      { title: 'Arka yüz', prompt: 'Cihazın arka yüzünü çekin.' },
+      { title: 'Kenarlar', prompt: 'Sağ ve sol kenarları çekin.' },
+      { title: 'Ekran açık', prompt: 'Ekranı açıkken çekin.' },
+      defect,
+    ];
+  }
+  if (category === 'laptop' || category === 'macbook') {
+    return [
+      { title: 'Ekran açık', prompt: 'Ekranı açıkken önden çekin.' },
+      { title: 'Klavye', prompt: 'Klavyeyi ve üst gövdeyi çekin.' },
+      { title: 'Kapak', prompt: 'Kapağın dışını çekin.' },
+      { title: 'Kenarlar', prompt: 'Portların olduğu kenarı çekin.' },
+      defect,
+    ];
+  }
+  if (category === 'desktop' || category === 'mac-desktop') {
+    return [
+      { title: 'Ön yüz', prompt: 'Kasanın önünü çekin.' },
+      { title: 'Yan panel', prompt: 'Yan kapağı çekin.' },
+      { title: 'Arka portlar', prompt: 'Arkadaki bağlantıları çekin.' },
+      { title: 'İç donanım', prompt: 'Kapak açıksa içini çekin.' },
+      defect,
+    ];
+  }
+  if (category === 'tablet' || category === 'ipad') {
+    return [
+      { title: 'Ön yüz', prompt: 'Ekranı kapalıyken önden çekin.' },
+      { title: 'Arka yüz', prompt: 'Arka kapağı çekin.' },
+      { title: 'Kenarlar', prompt: 'Kenarları çekin.' },
+      { title: 'Ekran açık', prompt: 'Ekranı açıkken çekin.' },
+      defect,
+    ];
+  }
+  if (category === 'console') {
+    return [
+      { title: 'Ön yüz', prompt: 'Konsolun önünü çekin.' },
+      { title: 'Arka yüz', prompt: 'Portların olduğu arkayı çekin.' },
+      { title: 'Kollar', prompt: 'Kolları çekin.' },
+      { title: 'Kablolar', prompt: 'Güç ve görüntü kablosunu çekin.' },
+      defect,
+    ];
+  }
+  if (category === 'gpu') {
+    return [
+      { title: 'Fanlar', prompt: 'Fanların olduğu yüzü çekin.' },
+      { title: 'Arka plaka', prompt: 'Metal arka plakayı çekin.' },
+      { title: 'Portlar', prompt: 'Görüntü çıkışlarını çekin.' },
+      { title: 'Bağlantı', prompt: 'Altın bağlantı şeridini çekin.' },
+      defect,
+    ];
+  }
+  if (category === 'watch') {
+    return [
+      { title: 'Ön cam', prompt: 'Ön camı çekin.' },
+      { title: 'Arka sensör', prompt: 'Arka sensörü çekin.' },
+      { title: 'Kordon', prompt: 'Kordonu çekin.' },
+      { title: 'Şarj', prompt: 'Şarj kablosunu çekin.' },
+      defect,
+    ];
+  }
+  if (category === 'headphones') {
+    return [
+      { title: 'Kulaklıklar', prompt: 'Kulak yastıklarını çekin.' },
+      { title: 'Bant', prompt: 'Kafa bandını ve menteşeleri çekin.' },
+      { title: 'Kılıf', prompt: 'Kılıfı veya kutuyu çekin.' },
+      { title: 'Uçlar', prompt: 'Yedek uç veya kabloyu çekin.' },
+      defect,
+    ];
+  }
+  return [
+    { title: 'Ön yüz', prompt: 'Cihazın ön yüzünü çekin.' },
+    { title: 'Arka yüz', prompt: 'Cihazın arka yüzünü çekin.' },
+    { title: 'Kenarlar', prompt: 'Kenarları çekin.' },
+    { title: 'Detay', prompt: 'Ekran veya bağlantıları çekin.' },
+    defect,
+  ];
 }

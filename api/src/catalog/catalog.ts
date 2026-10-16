@@ -86,7 +86,8 @@ const depolamaSagligi = select('depolamaSagligi', 'Depolama Sağlığı', true, 
   '%80–89',
   '%80 altı',
 ]);
-const kutuFatura = select('kutuFatura', 'Kutu / Fatura', true, ['Var', 'Yok']);
+const kutu = select('kutu', 'Kutu', true, ['Var', 'Yok']);
+const fatura = select('fatura', 'Fatura', true, ['Var', 'Yok']);
 const kalanGaranti = select('kalanGaranti', 'Kalan Garanti Süresi', true, [
   'Yok',
   '0–6 ay',
@@ -94,10 +95,11 @@ const kalanGaranti = select('kalanGaranti', 'Kalan Garanti Süresi', true, [
   '12 aydan fazla',
 ]);
 const kozmetik = select('kozmetik', 'Kozmetik Durumu', true, [
-  'Sıfır gibi',
+  'Kusursuz',
+  'Çok İyi',
   'İyi',
   'Orta',
-  'Kötü',
+  'Hasarlı',
 ]);
 const adaptor = select('adaptor', 'Adaptör', true, ['Orijinal', 'Muadil', 'Yok']);
 const calisma = select('calisma', 'Cihazın Çalışma Durumu', true, [
@@ -107,7 +109,7 @@ const calisma = select('calisma', 'Cihazın Çalışma Durumu', true, [
 const ekBilgi = note('ekBilgi', 'Ek Bilgi', 200);
 
 function conditionOf(extras: CatalogField[] = []): CatalogField[] {
-  return [...extras, kutuFatura, kalanGaranti, kozmetik, calisma, ekBilgi];
+  return [...extras, kutu, fatura, kalanGaranti, kozmetik, calisma, ekBilgi];
 }
 
 function computerSpecs(input: {
@@ -410,7 +412,7 @@ export const catalog: CategoryCatalog[] = [
           select('model', 'Model', true, withOther(['AirPods Pro', 'AirPods 4', 'Galaxy Buds', 'WH-1000XM5', 'Tune 510'])),
           select('baglanti', 'Bağlantı', true, ['Kablolu', 'Kablosuz']),
         ],
-        conditionFields: conditionOf([adaptor]),
+        conditionFields: conditionOf([pil]),
       },
     ],
   },

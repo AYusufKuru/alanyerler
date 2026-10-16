@@ -18,6 +18,8 @@ const labels: Record<string, string> = {
   pilSagligi: 'Pil sağlığı',
   depolamaSagligi: 'Depolama sağlığı',
   kutuFatura: 'Kutu / fatura',
+  kutu: 'Kutu',
+  fatura: 'Fatura',
   kalanGaranti: 'Kalan garanti',
   kozmetik: 'Kozmetik durum',
   adaptor: 'Adaptör',

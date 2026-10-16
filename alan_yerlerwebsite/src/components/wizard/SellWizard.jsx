@@ -6,27 +6,21 @@ import Step3Condition from './Step3Condition';
 import Step4Photos from './Step4Photos';
 import { loadCategories, submitListing } from '../../api';
 import { buildListing } from '../../listingMap';
+import { defaultSpecs } from '../../data/wizardData';
 
 export default function SellWizard({ token, initialCategory, initialSpecs, initialCondition, onCancel, onComplete }) {
+  const startCategory = initialCategory || 'laptop';
   const [currentStep, setCurrentStep] = useState(initialCategory ? 2 : 1);
-  const [category, setCategory] = useState(initialCategory || "laptop");
-  const [specs, setSpecs] = useState(initialSpecs || {
-    brand: "Apple",
-    series: "MacBook Pro",
-    model: "MacBook Pro 14\" (2023)",
-    cpu: "M2 Pro",
-    gpu: "Dahili (Apple GPU)",
-    ram: "16 GB",
-    storage: "512 GB SSD",
-    screenSize: "14 inç"
-  });
+  const [category, setCategory] = useState(startCategory);
+  const [specs, setSpecs] = useState(initialSpecs || defaultSpecs(startCategory));
   const [condition, setCondition] = useState({
     batteryHealth: initialCondition?.batteryHealth || "%100 (Orijinal)",
     ssdHealth: initialCondition?.ssdHealth || "%100 Sağlık",
-    boxAndInvoice: initialCondition?.boxAndInvoice !== undefined ? initialCondition.boxAndInvoice : true,
+    box: initialCondition?.box ?? initialCondition?.boxAndInvoice ?? true,
+    invoice: initialCondition?.invoice ?? initialCondition?.boxAndInvoice ?? true,
     warranty: initialCondition?.warranty || "6 - 12 Ay",
-    cosmetic: initialCondition?.cosmetic || "flawless",
-    cosmeticLabel: initialCondition?.cosmeticLabel || "Sıfır Gibi",
+    cosmetic: initialCondition?.cosmetic || "kusursuz",
+    cosmeticLabel: initialCondition?.cosmeticLabel || "Kusursuz",
     adapter: initialCondition?.adapter || "Orijinal",
     workingState: initialCondition?.workingState || "perfect",
     notes: ""
@@ -121,7 +115,10 @@ export default function SellWizard({ token, initialCategory, initialSpecs, initi
           {currentStep === 1 && (
             <Step1Category 
               selectedCategory={category}
-              onSelectCategory={setCategory}
+              onSelectCategory={(id) => {
+                setCategory(id);
+                setSpecs(defaultSpecs(id));
+              }}
               onNext={handleNext}
             />
           )}
