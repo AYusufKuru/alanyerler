@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft, Upload, Trash2, Sparkles, ShieldCheck } from 'lucide-react';
 
-export default function Step4Photos({ category, specs, condition, photos, onPhotosChange, onBack, onSubmit }) {
+export default function Step4Photos({ category, specs, condition, photos, onPhotosChange, onBack, onSubmit, error }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRef = useRef(null);
+  const slotRef = useRef(0);
 
   // Kategoriye özel akıllı fotoğraf yükleme rehberi
   const getCategoryPhotoGuide = (cat) => {
@@ -74,8 +76,14 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
     }
   };
 
-  const handleFillSamples = () => {
-    onPhotosChange(samplePhotoList.map(s => s.url));
+  const handleFillSamples = async () => {
+    const files = await Promise.all(samplePhotoList.map(async (slot, index) => {
+      const response = await fetch(slot.url);
+      const blob = await response.blob();
+      const file = new File([blob], `ornek-${index + 1}.jpg`, { type: blob.type || 'image/jpeg' });
+      return { file, url: slot.url };
+    }));
+    onPhotosChange(files);
   };
 
   const handleRemovePhoto = (index) => {
@@ -84,12 +92,29 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
     onPhotosChange(updated);
   };
 
-  const handleSubmitClick = () => {
+  const openSlot = (index) => {
+    slotRef.current = index;
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.click();
+    }
+  };
+
+  const handleFile = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const next = [...photos];
+    next[slotRef.current] = { file, url: URL.createObjectURL(file) };
+    onPhotosChange(next);
+  };
+
+  const handleSubmitClick = async () => {
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      await onSubmit();
+    } finally {
       setIsSubmitting(false);
-      onSubmit();
-    }, 1200);
+    }
   };
 
   const specParts = [
@@ -113,8 +138,15 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
 
       {/* Fotoğraf Yükleme Slotları */}
       <div className="wizard-photo-slots-grid">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+          onChange={handleFile}
+        />
         {samplePhotoList.map((slot, index) => {
-          const uploadedUrl = photos[index];
+          const uploadedUrl = photos[index]?.url;
           return (
             <div key={slot.id} className={`wizard-photo-slot ${uploadedUrl ? 'filled' : ''}`}>
               {uploadedUrl ? (
@@ -131,7 +163,7 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
                   </button>
                 </div>
               ) : (
-                <div className="wizard-photo-placeholder" onClick={handleFillSamples}>
+                <div className="wizard-photo-placeholder" onClick={() => openSlot(index)}>
                   <div className="placeholder-icon-circle">
                     <Upload size={20} />
                   </div>
@@ -205,6 +237,7 @@ export default function Step4Photos({ category, specs, condition, photos, onPhot
           <span>Geri</span>
         </button>
 
+        {error && <div className="auth-error">{error}</div>}
         <button 
           className="wizard-primary-submit-btn submit-final-call" 
           onClick={handleSubmitClick}

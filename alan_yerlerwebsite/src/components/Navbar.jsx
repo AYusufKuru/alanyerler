@@ -1,22 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Bell, User, Plus } from 'lucide-react';
-import { INITIAL_NOTIFICATIONS } from '../data/marketplaceData';
-import { loadSite } from '../api';
+import { loadNotifications, markNotificationsRead } from '../api';
+import { formatWhen, initials } from '../conversation';
 
-export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowToast, onViewChange, onOpenProfile }) {
+export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowToast, onViewChange, onOpenProfile, session, onLogout }) {
   const [showNotif, setShowNotif] = useState(false);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+  const [notice, setNotice] = useState('');
   const notifRef = useRef(null);
+  const token = session?.accessToken;
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
-  useEffect(() => {
-    loadSite()
-      .then((site) => {
-        if (Array.isArray(site.notifications) && site.notifications.length > 0) setNotifications(site.notifications);
+  const refresh = useCallback(() => {
+    if (!token) {
+      setNotifications([]);
+      return;
+    }
+    loadNotifications(token)
+      .then((rows) => {
+        setNotice('');
+        setNotifications((Array.isArray(rows) ? rows : []).map(presentNotification));
       })
-      .catch(() => {});
-  }, []);
+      .catch((reason) => {
+        setNotifications([]);
+        setNotice(reason instanceof Error ? reason.message : 'Bildirimler alınamadı.');
+      });
+  }, [token]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -28,9 +42,13 @@ export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowT
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
-    onShowToast('Tüm teklif bildirimleri okundu olarak işaretlendi.');
+  const markAllRead = async () => {
+    try {
+      await markNotificationsRead(token);
+      setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+    } catch (reason) {
+      onShowToast(reason instanceof Error ? reason.message : 'Bildirimler işaretlenemedi.');
+    }
   };
 
   return (
@@ -61,7 +79,15 @@ export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowT
           <div className="notif-wrapper" ref={notifRef}>
             <button 
               className="btn-circle-icon" 
-              onClick={() => setShowNotif(!showNotif)}
+              onClick={() => {
+                if (!session) {
+                  onOpenProfile();
+                  return;
+                }
+                const next = !showNotif;
+                setShowNotif(next);
+                if (next) refresh();
+              }}
               aria-label="Bildirimler"
             >
               <Bell size={18} />
@@ -79,19 +105,28 @@ export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowT
                   )}
                 </div>
                 <div className="notif-rows">
+                  {notice && <p className="auth-error">{notice}</p>}
+                  {!notice && notifications.length === 0 && (
+                    <p className="notif-body">Henüz bildirimin yok.</p>
+                  )}
                   {notifications.map(n => (
-                    <div 
-                      key={n.id} 
+                    <div
+                      key={n.id}
                       className="notif-row"
                       onClick={() => {
                         setShowNotif(false);
+                        if (n.unread) {
+                          markNotificationsRead(token, n.id).catch(() => {});
+                          setNotifications((prev) => prev.map((item) => (
+                            item.id === n.id ? { ...item, unread: false } : item
+                          )));
+                        }
                         if (onViewChange) onViewChange('offers');
-                        onShowToast(`${n.store} teklif detayları açıldı.`);
                       }}
                     >
                       <div className="notif-store-avatar">{n.avatar}</div>
                       <div className="notif-body">
-                        <p>{n.text}</p>
+                        <p><strong>{n.title}</strong> {n.body}</p>
                         <span>{n.time}</span>
                       </div>
                     </div>
@@ -114,6 +149,13 @@ export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowT
           </button>
 
           {/* Sell Button */}
+          {session && (
+            <button className="nav-session-chip" type="button" onClick={onLogout}>
+              <span className="nav-user-name">{session.user.name}</span>
+              <span className="nav-logout">Çıkış</span>
+            </button>
+          )}
+
           <button 
             className="btn-sell-primary" 
             onClick={() => {
@@ -127,4 +169,16 @@ export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowT
       </div>
     </header>
   );
+}
+
+function presentNotification(row) {
+  const title = row.title || 'Bildirim';
+  return {
+    id: row.id,
+    title,
+    body: row.body || '',
+    time: formatWhen(row.createdAt),
+    unread: !row.readAt,
+    avatar: initials(title),
+  };
 }

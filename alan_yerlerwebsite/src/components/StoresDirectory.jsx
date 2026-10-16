@@ -1,28 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { Search, MapPin, Star, ShieldCheck, Clock, MessageSquare, ArrowRight } from 'lucide-react';
-import { VERIFIED_STORES } from '../data/marketplaceData';
+import { Search, MapPin, Star, Clock, MessageSquare, ArrowRight } from 'lucide-react';
 import { loadSite } from '../api';
 
 export default function StoresDirectory({ onStartChat, onShowToast }) {
-  const [stores, setStores] = useState(VERIFIED_STORES);
+  const [stores, setStores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
 
   useEffect(() => {
     loadSite()
       .then((site) => {
-        if (Array.isArray(site.stores)) setStores(site.stores);
+        setStores(Array.isArray(site.stores) ? site.stores : []);
       })
-      .catch(() => {});
+      .catch(() => setStores([]));
   }, []);
 
   const filtered = stores.filter(store => {
+    const name = store.name || '';
     const district = store.district || '';
     const about = store.about || '';
-    const matchesSearch = store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           district.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           about.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCity = cityFilter === 'all' || store.city.toLowerCase() === cityFilter.toLowerCase();
+    const matchesCity = cityFilter === 'all' || (store.city || '').toLowerCase() === cityFilter.toLowerCase();
     return matchesSearch && matchesCity;
   });
 
@@ -78,16 +78,19 @@ export default function StoresDirectory({ onStartChat, onShowToast }) {
 
       {/* Mağaza Kartları */}
       <div className="stores-cards-grid">
+        {filtered.length === 0 && (
+          <p className="section-sub-desc">Henüz mağaza yok.</p>
+        )}
         {filtered.map(store => (
           <div key={store.id} className="store-profile-card">
             <div className="store-head-row">
               <div className="store-avatar-box">
-                {store.logoText}
+                {store.logoText || 'AY'}
               </div>
               <div className="store-head-meta">
                 <div className="store-name-line">
                   <h3 className="store-title">{store.name}</h3>
-                  <span className="verified-badge-check" title="Onaylı Kurumsal İşletme">✓</span>
+                  {store.verified && <span className="verified-badge-check" title="Onaylı Kurumsal İşletme">✓</span>}
                 </div>
                 {store.rating != null && (
                   <div className="store-rating-line">
@@ -100,7 +103,7 @@ export default function StoresDirectory({ onStartChat, onShowToast }) {
             </div>
 
             <div className="store-badges-cluster">
-              {store.badges.map((b, i) => (
+              {(store.badges || []).map((b, i) => (
                 <span key={i} className="store-tag-pill">{b}</span>
               ))}
             </div>
@@ -123,10 +126,7 @@ export default function StoresDirectory({ onStartChat, onShowToast }) {
             <div className="store-actions-footer">
               <button 
                 className="btn-store-message"
-                onClick={() => {
-                  onShowToast(`${store.name} ile canlı sohbet başlatılıyor...`);
-                  onStartChat(store);
-                }}
+                onClick={() => onStartChat(store)}
               >
                 <MessageSquare size={16} />
                 <span>Mesaj Gönder</span>

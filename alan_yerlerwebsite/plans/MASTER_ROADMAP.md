@@ -15,11 +15,11 @@ Bu doküman, mobil uygulamanın **birebir tüm yeteneklerini tarayıcıya taşı
 
 | # | Plan Dosyası | Kaynak Görsel | Odak Noktası | Durum |
 |---|---|---|---|---|
-| **1** | [PLAN-1_ANASAYFA_PLATFORM_HUB.md](file:///c:/Users/dell/Desktop/alan%20yerlerwebsite/plans/PLAN-1_ANASAYFA_PLATFORM_HUB.md) | **Fotoğraf 3** | Ana Platform Portalı, Lüks Header & Nav, Hero & Canlı Teklif Rozeti, 7 Kategori Izgarası, "Nasıl Çalışır?" 4 Adımlı Akış, Güvenlik Bandı | ✅ Tamamlandı |
-| **2** | [PLAN-2_CIHAZ_SATIS_SIHIRBAZI.md](file:///c:/Users/dell/Desktop/alan%20yerlerwebsite/plans/PLAN-2_CIHAZ_SATIS_SIHIRBAZI.md) | **Fotoğraf 4** | 4 Kademeli Satış Sihirbazı (Cihaz Türü ➔ Dinamik Donanım Seçici ➔ Sağlık & Kozmetik Durumu ➔ Fotoğraf Yükleme & Özet) | ✅ Tamamlandı |
-| **3** | [PLAN-3_TEKLIF_RADARI_VE_GELEN_TEKLIFLER.md](file:///c:/Users/dell/Desktop/alan%20yerlerwebsite/plans/PLAN-3_TEKLIF_RADARI_VE_GELEN_TEKLIFLER.md) | **Fotoğraf 2** | Canlı Dağıtım Radarı, Canlı Durum Zaman Çizelgesi, "Gelen Teklifler" Karşılaştırma Listesi, Teklif Detay Kartı ve Güvenlik Rehberi | ✅ Tamamlandı |
-| **4** | [PLAN-4_MESAJLASMA_VE_ISLETME_PROFILI.md](file:///c:/Users/dell/Desktop/alan%20yerlerwebsite/plans/PLAN-4_MESAJLASMA_VE_ISLETME_PROFILI.md) | **Fotoğraf 1** | Gelen Kutusu (Filtreli), Canlı Chat Arayüzü, Gömülü "42.500 TL Teklifi Kabul Et" Sözleşme Kartı, Mağaza Lokasyonu, Detaylı İşletme Profili | ✅ Tamamlandı |
-| **5** | [PLAN-5_ONBOARDING_GUVEN_VE_MOBIL_ENTEGRASYON.md](file:///c:/Users/dell/Desktop/alan%20yerlerwebsite/plans/PLAN-5_ONBOARDING_GUVEN_VE_MOBIL_ENTEGRASYON.md) | **Fotoğraf 5** | İnteraktif Değer & Güven Vitrini (Onboarding), 5 Modül Arası Veri Köprüsü, Mobil Entegrasyon Katmanı, PWA & Responsive Testler | ✅ Tamamlandı |
+| **1** | [PLAN-1_ANASAYFA_PLATFORM_HUB.md](PLAN-1_ANASAYFA_PLATFORM_HUB.md) | **Fotoğraf 3** | Ana Platform Portalı, Lüks Header & Nav, Hero & Canlı Teklif Rozeti, 7 Kategori Izgarası, "Nasıl Çalışır?" 4 Adımlı Akış, Güvenlik Bandı | ✅ Tamamlandı |
+| **2** | [PLAN-2_CIHAZ_SATIS_SIHIRBAZI.md](PLAN-2_CIHAZ_SATIS_SIHIRBAZI.md) | **Fotoğraf 4** | 4 Kademeli Satış Sihirbazı (Cihaz Türü ➔ Dinamik Donanım Seçici ➔ Sağlık & Kozmetik Durumu ➔ Fotoğraf Yükleme & Özet) | ✅ Tamamlandı |
+| **3** | [PLAN-3_TEKLIF_RADARI_VE_GELEN_TEKLIFLER.md](PLAN-3_TEKLIF_RADARI_VE_GELEN_TEKLIFLER.md) | **Fotoğraf 2** | Canlı Dağıtım Radarı, Canlı Durum Zaman Çizelgesi, "Gelen Teklifler" Karşılaştırma Listesi, Teklif Detay Kartı ve Güvenlik Rehberi | ✅ Tamamlandı |
+| **4** | [PLAN-4_MESAJLASMA_VE_ISLETME_PROFILI.md](PLAN-4_MESAJLASMA_VE_ISLETME_PROFILI.md) | **Fotoğraf 1** | Gelen Kutusu (Filtreli), Canlı Chat Arayüzü, Gömülü "42.500 TL Teklifi Kabul Et" Sözleşme Kartı, Mağaza Lokasyonu, Detaylı İşletme Profili | ✅ Tamamlandı |
+| **5** | [PLAN-5_ONBOARDING_GUVEN_VE_MOBIL_ENTEGRASYON.md](PLAN-5_ONBOARDING_GUVEN_VE_MOBIL_ENTEGRASYON.md) | **Fotoğraf 5** | İnteraktif Değer & Güven Vitrini (Onboarding), 5 Modül Arası Veri Köprüsü, Mobil Entegrasyon Katmanı, PWA & Responsive Testler | ✅ Tamamlandı |
 
 ---
 

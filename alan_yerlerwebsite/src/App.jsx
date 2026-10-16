@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { clearSession, loadSession } from './api';
 import MarketTicker from './components/MarketTicker';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -16,9 +17,19 @@ import OffersHub from './components/offers/OffersHub';
 import MessagesView from './components/MessagesView';
 import OnboardingShowcase from './components/onboarding/OnboardingShowcase';
 import ProfileView from './components/ProfileView';
+import AuthScreen from './components/AuthScreen';
+
+const privateTabs = {
+  wizard: 'sell',
+  offers: 'offers',
+  messages: 'messages',
+  profile: 'profile',
+};
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'wizard', 'offers', 'messages', 'stores', 'profile'
+  const [session, setSession] = useState(() => loadSession());
+  const [pendingView, setPendingView] = useState(null);
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'wizard', 'offers', 'messages', 'stores', 'profile', 'auth'
   const [activeTab, setActiveTab] = useState('home');
   const [wizardInitialCategory, setWizardInitialCategory] = useState(null);
   const [wizardInitialSpecs, setWizardInitialSpecs] = useState(null);
@@ -34,6 +45,27 @@ export default function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 3200);
+  };
+
+  const openView = (view, options = {}) => {
+    if (view === 'messages' && !options.keepChat) setSelectedChatStore(null);
+    if (privateTabs[view] && !session) {
+      setPendingView(view);
+      setCurrentView('auth');
+      setActiveTab(privateTabs[view]);
+      return;
+    }
+    setCurrentView(view);
+    if (privateTabs[view]) setActiveTab(privateTabs[view]);
+    else if (view === 'home') setActiveTab('home');
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setSession(null);
+    setPendingView(null);
+    setCurrentView('home');
+    setActiveTab('home');
   };
 
   const scrollToCategories = () => {
@@ -54,9 +86,8 @@ export default function App() {
     setWizardInitialCategory(cat.id);
     setWizardInitialSpecs(null);
     setWizardInitialCondition(null);
-    setCurrentView('wizard');
-    setActiveTab('sell');
-    showToast(`"${cat.name}" için Satış Sihirbazı başlatıldı.`);
+    openView('wizard');
+    if (session) showToast(`"${cat.name}" için Satış Sihirbazı başlatıldı.`);
   };
 
   // Değerleme seçildiğinde sihirbazı başlat
@@ -68,9 +99,8 @@ export default function App() {
     if (valData.condition) {
       setWizardInitialCondition(valData.condition);
     }
-    setCurrentView('wizard');
-    setActiveTab('sell');
-    showToast(`"${valData.modelName || 'Seçilen Cihaz'}" için teklif sihirbazı hazırlandı.`);
+    openView('wizard');
+    if (session) showToast(`"${valData.modelName || 'Seçilen Cihaz'}" için teklif sihirbazı hazırlandı.`);
   };
 
   // Sihirbaz tamamlandığında Teklif Radarı ekranına aktar
@@ -82,10 +112,18 @@ export default function App() {
     showToast('🚀 Cihazınız işletmelere başarıyla iletildi! Dağıtım radarı aktif.');
   };
 
-  const handleOpenChat = (storeOrBid) => {
-    setSelectedChatStore(storeOrBid);
-    setCurrentView('messages');
-    setActiveTab('messages');
+  const handleOpenChat = (target) => {
+    if (target?.listingId && target?.storeId) {
+      setSelectedChatStore({
+        listingId: target.listingId,
+        storeId: target.storeId,
+        nonce: Date.now(),
+      });
+      openView('messages', { keepChat: true });
+      return;
+    }
+    showToast('Konuşma, size teklif veren mağazayla açılır.');
+    openView('messages');
   };
 
   const handleOpenHowItWorks = () => {
@@ -112,14 +150,10 @@ export default function App() {
         onOpenHowItWorks={handleOpenHowItWorks}
         onScrollToCategories={scrollToCategories}
         onShowToast={showToast}
-        onViewChange={(view) => {
-          setCurrentView(view);
-          setActiveTab(view);
-        }}
-        onOpenProfile={() => {
-          setCurrentView('profile');
-          setActiveTab('profile');
-        }}
+        session={session}
+        onViewChange={openView}
+        onOpenProfile={() => openView('profile')}
+        onLogout={handleLogout}
       />
 
       {/* GÖRÜNÜM YÖNETİMİ (ROUTING / SPA STATE) */}
@@ -141,10 +175,7 @@ export default function App() {
             />
 
             <OnboardingShowcase 
-              onStartSelling={() => {
-                setCurrentView('wizard');
-                setActiveTab('sell');
-              }}
+              onStartSelling={() => openView('wizard')}
             />
 
             <TrustBanner 
@@ -159,8 +190,9 @@ export default function App() {
         )}
 
         {/* SATIŞ SİHİRBAZI */}
-        {currentView === 'wizard' && (
-          <SellWizard 
+        {currentView === 'wizard' && session && (
+          <SellWizard
+            token={session.accessToken}
             initialCategory={wizardInitialCategory}
             initialSpecs={wizardInitialSpecs}
             initialCondition={wizardInitialCondition}
@@ -173,8 +205,9 @@ export default function App() {
         )}
 
         {/* CANLI TEKLİF RADARI, LİSTESİ & DETAYI */}
-        {currentView === 'offers' && (
-          <OffersHub 
+        {currentView === 'offers' && session && (
+          <OffersHub
+            token={session.accessToken}
             device={submittedDevice}
             initialMode={offersInitialMode}
             onBackToHome={() => {
@@ -191,9 +224,11 @@ export default function App() {
         )}
 
         {/* CANLI MESAJLAŞMA & SÖZLEŞME EKRANI */}
-        {currentView === 'messages' && (
-          <MessagesView 
-            activeStore={selectedChatStore}
+        {currentView === 'messages' && session && (
+          <MessagesView
+            key={selectedChatStore?.nonce || 'inbox'}
+            token={session.accessToken}
+            chatTarget={selectedChatStore}
             device={submittedDevice}
             onBackToHome={() => {
               setCurrentView('home');
@@ -212,22 +247,37 @@ export default function App() {
         )}
 
         {/* KULLANICI PROFİLİ & İLANLARIM */}
-        {currentView === 'profile' && (
-          <ProfileView 
-            onStartWizard={() => {
-              setCurrentView('wizard');
-              setActiveTab('sell');
+        {currentView === 'auth' && (
+          <AuthScreen
+            onCancel={() => {
+              setPendingView(null);
+              setCurrentView('home');
+              setActiveTab('home');
             }}
+            onSuccess={(nextSession) => {
+              const next = pendingView || 'profile';
+              setSession(nextSession);
+              setPendingView(null);
+              setCurrentView(next);
+              setActiveTab(privateTabs[next] || 'home');
+            }}
+          />
+        )}
+
+        {currentView === 'profile' && session && (
+          <ProfileView
+            user={session.user}
+            token={session.accessToken}
+            onSession={setSession}
+            onLogout={handleLogout}
+            onStartWizard={() => openView('wizard')}
             onGoToOffers={(dev) => {
               if (dev) setSubmittedDevice(dev);
               setOffersInitialMode('list');
               setCurrentView('offers');
               setActiveTab('offers');
             }}
-            onGoToMessages={() => {
-              setCurrentView('messages');
-              setActiveTab('messages');
-            }}
+            onGoToMessages={() => openView('messages')}
             onShowToast={showToast}
           />
         )}
@@ -244,24 +294,21 @@ export default function App() {
       <MobileBottomNav 
         activeTab={activeTab}
         onTabChange={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'home') setCurrentView('home');
+          if (tab === 'home') openView('home');
           if (tab === 'offers') {
             setOffersInitialMode('list');
-            setCurrentView('offers');
+            openView('offers');
           }
-          if (tab === 'messages') setCurrentView('messages');
+          if (tab === 'messages') openView('messages');
           if (tab === 'sell') {
-            setCurrentView('wizard');
             setWizardInitialCategory(null);
+            openView('wizard');
           }
-          if (tab === 'profile') {
-            setCurrentView('profile');
-          }
+          if (tab === 'profile') openView('profile');
         }}
         onSellClick={() => {
-          setCurrentView('wizard');
-          setActiveTab('sell');
+          setWizardInitialCategory(null);
+          openView('wizard');
         }}
       />
 
@@ -270,10 +317,7 @@ export default function App() {
         isOpen={modalState.isOpen}
         modalData={modalState.data}
         onClose={handleCloseModal}
-        onProceedToWizard={() => {
-          setCurrentView('wizard');
-          setActiveTab('sell');
-        }}
+        onProceedToWizard={() => openView('wizard')}
       />
 
       {/* Toast Bildirimi */}

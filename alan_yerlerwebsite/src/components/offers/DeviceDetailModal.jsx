@@ -17,7 +17,9 @@ export default function DeviceDetailModal({ device, onClose }) {
     desktop: '/assets/categories/laptop.jpg'
   };
 
-  const photoSrc = photos[0] || categoryImages[category] || categoryImages.laptop;
+  const categoryName = typeof category === 'string' ? category : category?.name || '';
+  const firstPhoto = typeof photos[0] === 'string' ? photos[0] : photos[0]?.path;
+  const photoSrc = firstPhoto || categoryImages[categoryName] || categoryImages[category] || categoryImages.laptop;
 
   return (
     <div className="device-detail-modal-overlay" onClick={onClose}>
@@ -25,8 +27,8 @@ export default function DeviceDetailModal({ device, onClose }) {
         {/* Modal Başlık */}
         <div className="device-modal-header">
           <div>
-            <span className="modal-category-kicker">{category?.toUpperCase() || 'DONANIM'}</span>
-            <h3 className="modal-device-title">{specs.model || specs.brand || 'Kayıtlı Cihaz'}</h3>
+            <span className="modal-category-kicker">{categoryName ? categoryName.toUpperCase() : 'DONANIM'}</span>
+            <h3 className="modal-device-title">{device.title || specs.model || specs.brand || 'Kayıtlı Cihaz'}</h3>
           </div>
           <button className="btn-modal-close" onClick={onClose} aria-label="Kapat">
             <X size={20} />
@@ -53,19 +55,19 @@ export default function DeviceDetailModal({ device, onClose }) {
           <div className="modal-specs-grid">
             <div className="spec-grid-item">
               <span className="spec-item-key">İşlemci (CPU)</span>
-              <strong className="spec-item-val">{specs.cpu || 'Belirtilmedi'}</strong>
+              <strong className="spec-item-val">{specs.cpu || '—'}</strong>
             </div>
             <div className="spec-grid-item">
               <span className="spec-item-key">Ekran Kartı (GPU)</span>
-              <strong className="spec-item-val">{specs.gpu || 'Dahili Grafik'}</strong>
+              <strong className="spec-item-val">{specs.gpu || '—'}</strong>
             </div>
             <div className="spec-grid-item">
               <span className="spec-item-key">Bellek (RAM)</span>
-              <strong className="spec-item-val">{specs.ram || 'Belirtilmedi'}</strong>
+              <strong className="spec-item-val">{specs.ram || '—'}</strong>
             </div>
             <div className="spec-grid-item">
               <span className="spec-item-key">Dahili Depolama</span>
-              <strong className="spec-item-val">{specs.storage || 'Belirtilmedi'}</strong>
+              <strong className="spec-item-val">{specs.storage || '—'}</strong>
             </div>
             {specs.screenSize && (
               <div className="spec-grid-item">

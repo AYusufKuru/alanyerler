@@ -4,8 +4,10 @@ import Step1Category from './Step1Category';
 import Step2Specs from './Step2Specs';
 import Step3Condition from './Step3Condition';
 import Step4Photos from './Step4Photos';
+import { loadCategories, submitListing } from '../../api';
+import { buildListing } from '../../listingMap';
 
-export default function SellWizard({ initialCategory, initialSpecs, initialCondition, onCancel, onComplete }) {
+export default function SellWizard({ token, initialCategory, initialSpecs, initialCondition, onCancel, onComplete }) {
   const [currentStep, setCurrentStep] = useState(initialCategory ? 2 : 1);
   const [category, setCategory] = useState(initialCategory || "laptop");
   const [specs, setSpecs] = useState(initialSpecs || {
@@ -30,6 +32,7 @@ export default function SellWizard({ initialCategory, initialSpecs, initialCondi
     notes: ""
   });
   const [photos, setPhotos] = useState([]);
+  const [submitError, setSubmitError] = useState('');
 
   const stepLabels = [
     { num: 1, title: "Cihaz Türü" },
@@ -47,23 +50,30 @@ export default function SellWizard({ initialCategory, initialSpecs, initialCondi
     else onCancel();
   };
 
-  const handleSubmit = () => {
-    const deviceRecord = {
-      id: `dev-${Date.now()}`,
-      category,
-      specs,
-      condition,
-      photos,
-      status: "collecting_offers",
-      createdAt: new Date().toISOString()
-    };
-
-    // Kalıcı yerel depolamaya kaydet
-    const existing = JSON.parse(localStorage.getItem('alan_yerler_devices') || '[]');
-    existing.unshift(deviceRecord);
-    localStorage.setItem('alan_yerler_devices', JSON.stringify(existing));
-
-    onComplete(deviceRecord);
+  const handleSubmit = async () => {
+    const files = photos.map((photo) => photo?.file).filter(Boolean);
+    if (files.length < 2) {
+      setSubmitError('En az 2 fotoğraf seçin.');
+      return;
+    }
+    setSubmitError('');
+    try {
+      const categories = await loadCategories(token);
+      const payload = buildListing(categories, category, specs, condition);
+      const listing = await submitListing(token, payload, files);
+      const deviceRecord = {
+        id: listing.id,
+        category,
+        specs,
+        condition,
+        photos: listing.photos.map((photo) => photo.path),
+        status: 'collecting_offers',
+        createdAt: listing.createdAt,
+      };
+      onComplete(deviceRecord);
+    } catch (reason) {
+      setSubmitError(reason instanceof Error ? reason.message : 'İlan gönderilemedi.');
+    }
   };
 
   return (
@@ -146,6 +156,7 @@ export default function SellWizard({ initialCategory, initialSpecs, initialCondi
               onPhotosChange={setPhotos}
               onBack={handleBack}
               onSubmit={handleSubmit}
+              error={submitError}
             />
           )}
         </div>

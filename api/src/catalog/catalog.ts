@@ -99,7 +99,7 @@ const kozmetik = select('kozmetik', 'Kozmetik Durumu', true, [
   'Orta',
   'Kötü',
 ]);
-const adaptor = select('adaptor', 'Adaptör', true, ['Orijinal', 'Muadil']);
+const adaptor = select('adaptor', 'Adaptör', true, ['Orijinal', 'Muadil', 'Yok']);
 const calisma = select('calisma', 'Cihazın Çalışma Durumu', true, [
   'Sorunsuz çalışıyor',
   'Bazı sorunlar var',
@@ -290,7 +290,7 @@ export const catalog: CategoryCatalog[] = [
           select('marka', 'Marka', true, ['Sony']),
           select('model', 'Model', true, withOther(['PlayStation 4', 'PlayStation 4 Pro', 'PlayStation 5', 'PlayStation 5 Slim'])),
           select('depolama', 'Depolama', true, storage),
-          select('kolAdedi', 'Kol Adedi', true, ['1', '2', '3', '4']),
+          select('kolAdedi', 'Kol Adedi', true, ['0', '1', '2', '3', '4']),
         ],
         conditionFields: conditionOf([adaptor]),
       },
@@ -301,7 +301,7 @@ export const catalog: CategoryCatalog[] = [
           select('marka', 'Marka', true, ['Microsoft']),
           select('model', 'Model', true, withOther(['Xbox One', 'Xbox Series S', 'Xbox Series X'])),
           select('depolama', 'Depolama', true, storage),
-          select('kolAdedi', 'Kol Adedi', true, ['1', '2', '3', '4']),
+          select('kolAdedi', 'Kol Adedi', true, ['0', '1', '2', '3', '4']),
         ],
         conditionFields: conditionOf([adaptor]),
       },
@@ -312,7 +312,7 @@ export const catalog: CategoryCatalog[] = [
           select('marka', 'Marka', true, ['Nintendo']),
           select('model', 'Model', true, withOther(['Switch', 'Switch OLED', 'Switch 2'])),
           select('depolama', 'Depolama', true, storage),
-          select('kolAdedi', 'Kol Adedi', true, ['1', '2', '3', '4']),
+          select('kolAdedi', 'Kol Adedi', true, ['0', '1', '2', '3', '4']),
         ],
         conditionFields: conditionOf([adaptor]),
       },

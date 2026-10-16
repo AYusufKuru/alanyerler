@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { LIVE_TICKER_FEED } from '../data/marketplaceData';
 import { loadSite } from '../api';
 
 export default function MarketTicker() {
-  const [feed, setFeed] = useState(LIVE_TICKER_FEED);
+  const [feed, setFeed] = useState([]);
 
   useEffect(() => {
     loadSite()
       .then((site) => {
-        if (Array.isArray(site.ticker) && site.ticker.length > 0) setFeed(site.ticker);
+        if (Array.isArray(site.ticker)) setFeed(site.ticker);
       })
-      .catch(() => {});
+      .catch(() => setFeed([]));
   }, []);
+
+  if (feed.length === 0) return null;
 
   const loopFeed = [...feed, ...feed];
 

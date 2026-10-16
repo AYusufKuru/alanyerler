@@ -1,27 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Check, Bell, Loader2, Store, Sparkles, ArrowRight } from 'lucide-react';
+import React from 'react';
+import { ArrowLeft, Check, Bell, Store, Sparkles, ArrowRight } from 'lucide-react';
 
-export default function OffersRadar({ device, onProceedToList, onBackToHome }) {
-  const [stepProgress, setStepProgress] = useState(2); // 1: Bilgiler gönderildi, 2: Paylaşıldı, 3: Toplanıyor, 4: Listelendi
-  const [incomingBidsCount, setIncomingBidsCount] = useState(0);
-
-  useEffect(() => {
-    // Gerçek zamanlı ilerleme simülasyonu
-    const timer1 = setTimeout(() => {
-      setStepProgress(3);
-      setIncomingBidsCount(2);
-    }, 1200);
-
-    const timer2 = setTimeout(() => {
-      setStepProgress(4);
-      setIncomingBidsCount(5);
-    }, 2800);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, []);
+export default function OffersRadar({ device, offers = [], loading, onProceedToList, onBackToHome }) {
 
   const categoryImages = {
     laptop: '/assets/categories/laptop.jpg',
@@ -34,8 +14,9 @@ export default function OffersRadar({ device, onProceedToList, onBackToHome }) {
   };
 
   const deviceImgSrc = device?.photos?.[0] || categoryImages[device?.category] || categoryImages.laptop;
-  const deviceTitle = device?.specs?.model || "MacBook Pro 14\" (2023)";
-  const deviceSpecs = `${device?.specs?.cpu || "M2 Pro"} • ${device?.specs?.ram || "16 GB"} • ${device?.specs?.storage || "512 GB SSD"}`;
+  const deviceTitle = device?.specs?.model || device?.title || 'İlan';
+  const storeNames = offers.map((offer) => offer.storeName).filter(Boolean).slice(0, 4);
+  const offerCount = offers.length;
 
   return (
     <div className="radar-view-container">
@@ -84,33 +65,41 @@ export default function OffersRadar({ device, onProceedToList, onBackToHome }) {
         </div>
 
         {/* Çevrede Parlayan Mağaza Düğümleri */}
+        {storeNames[0] && (
         <div className="satellite-store-node store-top-left">
           <div className="store-pill-badge">
             <Store size={14} />
-            <span>TechStore</span>
+            <span>{storeNames[0]}</span>
           </div>
         </div>
+        )}
 
+        {storeNames[1] && (
         <div className="satellite-store-node store-top-right">
           <div className="store-pill-badge">
             <Store size={14} />
-            <span>Giga Bilişim</span>
+            <span>{storeNames[1]}</span>
           </div>
         </div>
+        )}
 
+        {storeNames[2] && (
         <div className="satellite-store-node store-bottom-left">
           <div className="store-pill-badge">
             <Store size={14} />
-            <span>Nova Teknoloji</span>
+            <span>{storeNames[2]}</span>
           </div>
         </div>
+        )}
 
+        {storeNames[3] && (
         <div className="satellite-store-node store-bottom-right">
           <div className="store-pill-badge">
             <Store size={14} />
-            <span>Plus Elektronik</span>
+            <span>{storeNames[3]}</span>
           </div>
         </div>
+        )}
       </div>
 
       {/* Başlık ve Açıklama */}
@@ -141,34 +130,19 @@ export default function OffersRadar({ device, onProceedToList, onBackToHome }) {
           </div>
           <div className="check-text-content">
             <h4>Uygun işletmelerle paylaşıldı</h4>
-            <span className="check-subtext">Bölgenizdeki 18 kurumsal esnafa iletildi</span>
+            <span className="check-subtext">İlan işletmelere iletildi</span>
           </div>
         </div>
 
         {/* Madde 3 */}
-        <div className={`checklist-row ${stepProgress >= 3 ? 'in-progress' : 'pending'}`}>
-          <div className="check-icon-circle spinner">
-            {stepProgress >= 4 ? (
-              <Check size={14} strokeWidth={3} />
-            ) : (
-              <Loader2 size={15} className="spin-animation" />
-            )}
+        <div className={`checklist-row ${offerCount > 0 ? 'completed' : 'in-progress'}`}>
+          <div className="check-icon-circle">
+            {offerCount > 0 ? <Check size={14} strokeWidth={3} /> : <span className="empty-dot" />}
           </div>
           <div className="check-text-content">
             <h4>Teklifler toplanıyor</h4>
-            <span className="check-subtext">Bu işlem birkaç dakika sürebilir.</span>
-          </div>
-        </div>
-
-        {/* Madde 4 */}
-        <div className={`checklist-row ${stepProgress >= 4 ? 'completed' : 'pending'}`}>
-          <div className="check-icon-circle">
-            {stepProgress >= 4 ? <Check size={14} strokeWidth={3} /> : <span className="empty-dot" />}
-          </div>
-          <div className="check-text-content">
-            <h4>Teklifler listeleniyor</h4>
             <span className="check-subtext">
-              {stepProgress >= 4 ? "5 mağazadan canlı teklif hazır!" : "Teklifler sıralanacak"}
+              {loading ? 'Bakılıyor' : offerCount > 0 ? `${offerCount} teklif var` : 'Henüz teklif yok'}
             </span>
           </div>
         </div>
@@ -188,7 +162,7 @@ export default function OffersRadar({ device, onProceedToList, onBackToHome }) {
       <div className="radar-action-footer">
         <button className="btn-proceed-to-offers" onClick={onProceedToList}>
           <Sparkles size={18} />
-          <span>Gelen Teklifleri Gör ({incomingBidsCount > 0 ? `${incomingBidsCount} Teklif` : 'Canlı'})</span>
+          <span>Gelen Teklifleri Gör ({offerCount})</span>
           <ArrowRight size={18} />
         </button>
       </div>

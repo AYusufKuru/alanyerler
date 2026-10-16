@@ -3,13 +3,19 @@ import { ArrowRight } from 'lucide-react';
 import { CATEGORIES } from '../data/marketplaceData';
 import { loadSite } from '../api';
 
+const waitingCategories = CATEGORIES.map((cat) => ({
+  ...cat,
+  activeBuyers: 0,
+  avgPriceRange: 'Teklif bekleniyor',
+}));
+
 export default function CategoriesGrid({ onSelectCategory }) {
-  const [categories, setCategories] = useState(CATEGORIES);
+  const [categories, setCategories] = useState(waitingCategories);
 
   useEffect(() => {
     loadSite()
       .then((site) => {
-        if (Array.isArray(site.categories) && site.categories.length > 0) setCategories(site.categories);
+        if (Array.isArray(site.categories)) setCategories(site.categories);
       })
       .catch(() => {});
   }, []);

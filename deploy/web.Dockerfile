@@ -1,10 +1,10 @@
 FROM node:22-bookworm-slim AS website
 WORKDIR /src
-COPY ["alan yerlerwebsite/package.json", "alan yerlerwebsite/package-lock.json", "./"]
+COPY ["alan_yerlerwebsite/package.json", "alan_yerlerwebsite/package-lock.json", "./"]
 RUN npm ci
-COPY ["alan yerlerwebsite/index.html", "alan yerlerwebsite/vite.config.js", "./"]
-COPY ["alan yerlerwebsite/src", "./src"]
-COPY ["alan yerlerwebsite/public", "./public"]
+COPY ["alan_yerlerwebsite/index.html", "alan_yerlerwebsite/vite.config.js", "./"]
+COPY ["alan_yerlerwebsite/src", "./src"]
+COPY ["alan_yerlerwebsite/public", "./public"]
 ENV VITE_API_URL=same-origin
 RUN npm run build
 
