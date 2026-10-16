@@ -36,6 +36,7 @@ export default function App() {
   const [wizardInitialCondition, setWizardInitialCondition] = useState(null);
   const [submittedDevice, setSubmittedDevice] = useState(null);
   const [offersInitialMode, setOffersInitialMode] = useState('radar');
+  const [offersFocusId, setOffersFocusId] = useState('');
   const [selectedChatStore, setSelectedChatStore] = useState(null);
   const [modalState, setModalState] = useState({ isOpen: false, data: null });
   const [toastMessage, setToastMessage] = useState(null);
@@ -49,6 +50,11 @@ export default function App() {
 
   const openView = (view, options = {}) => {
     if (view === 'messages' && !options.keepChat) setSelectedChatStore(null);
+    if (view === 'offers' && !options.keepOffer) {
+      setOffersInitialMode('board');
+      setOffersFocusId('');
+      setSubmittedDevice(null);
+    }
     if (privateTabs[view] && !session) {
       setPendingView(view);
       setCurrentView('auth');
@@ -106,10 +112,9 @@ export default function App() {
   // Sihirbaz tamamlandığında Teklif Radarı ekranına aktar
   const handleWizardComplete = (deviceData) => {
     setSubmittedDevice(deviceData);
-    setOffersInitialMode('radar');
+    setOffersInitialMode('list');
     setCurrentView('offers');
     setActiveTab('offers');
-    showToast('🚀 Cihazınız işletmelere başarıyla iletildi! Dağıtım radarı aktif.');
   };
 
   const handleOpenChat = (target) => {
@@ -124,6 +129,14 @@ export default function App() {
     }
     showToast('Konuşma, size teklif veren mağazayla açılır.');
     openView('messages');
+  };
+
+  const handleOpenOffer = (thread) => {
+    if (!thread?.listingId || !thread?.offerId) return;
+    setSubmittedDevice({ id: thread.listingId });
+    setOffersFocusId(thread.offerId);
+    setOffersInitialMode('detail');
+    openView('offers', { keepOffer: true });
   };
 
   const handleOpenHowItWorks = () => {
@@ -161,10 +174,7 @@ export default function App() {
         {/* ANA SAYFA PORTALI */}
         {currentView === 'home' && (
           <>
-            <Hero 
-              onSelectValuation={handleSelectValuation}
-              onOpenHowItWorks={handleOpenHowItWorks}
-            />
+            <Hero onStartSelling={() => openView('wizard')} />
 
             <CategoriesGrid 
               onSelectCategory={handleSelectCategory}
@@ -210,6 +220,7 @@ export default function App() {
             token={session.accessToken}
             device={submittedDevice}
             initialMode={offersInitialMode}
+            focusOfferId={offersFocusId}
             onBackToHome={() => {
               setCurrentView('home');
               setActiveTab('home');
@@ -235,6 +246,7 @@ export default function App() {
               setActiveTab('home');
             }}
             onShowToast={showToast}
+            onOpenOffer={handleOpenOffer}
           />
         )}
 
@@ -295,10 +307,7 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={(tab) => {
           if (tab === 'home') openView('home');
-          if (tab === 'offers') {
-            setOffersInitialMode('list');
-            openView('offers');
-          }
+          if (tab === 'offers') openView('offers');
           if (tab === 'messages') openView('messages');
           if (tab === 'sell') {
             setWizardInitialCategory(null);

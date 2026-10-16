@@ -13,3 +13,11 @@ export class CreateListingDto {
   @IsObject({ message: 'Durum bilgisi gerekli.' })
   condition!: Record<string, unknown>;
 }
+
+export class UpdateListingDto {
+  @IsObject({ message: 'Özellikler gerekli.' })
+  specs!: Record<string, unknown>;
+
+  @IsObject({ message: 'Durum bilgisi gerekli.' })
+  condition!: Record<string, unknown>;
+}

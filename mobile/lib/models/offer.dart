@@ -8,6 +8,7 @@ class StoreCard {
     this.badges = const [],
     this.rating,
     this.reviewCount,
+    this.verified = false,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class StoreCard {
   final List<String> badges;
   final double? rating;
   final int? reviewCount;
+  final bool verified;
 
   factory StoreCard.fromJson(Map<String, dynamic> json) {
     final badges = json['badges'];
@@ -30,6 +32,7 @@ class StoreCard {
       badges: badges is List ? badges.whereType<String>().toList() : const [],
       rating: _double(json['rating']),
       reviewCount: json['reviewCount'] is int ? json['reviewCount'] as int : null,
+      verified: json['verified'] == true,
     );
   }
 }
@@ -38,6 +41,13 @@ class CustomerOffer {
   const CustomerOffer({
     required this.id,
     required this.price,
+    required this.openedPrice,
+    required this.kind,
+    required this.label,
+    required this.disclaimer,
+    this.revision,
+    this.terms = const [],
+    this.accepted = false,
     required this.currency,
     required this.createdAt,
     required this.updatedAt,
@@ -46,6 +56,13 @@ class CustomerOffer {
 
   final String id;
   final double price;
+  final double openedPrice;
+  final String kind;
+  final String label;
+  final String disclaimer;
+  final String? revision;
+  final List<String> terms;
+  final bool accepted;
   final String currency;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -56,6 +73,13 @@ class CustomerOffer {
     return CustomerOffer(
       id: json['id'] as String? ?? '',
       price: _double(json['price']) ?? 0,
+      openedPrice: _double(json['openedPrice']) ?? _double(json['price']) ?? 0,
+      kind: json['kind'] as String? ?? 'on',
+      label: json['label'] as String? ?? 'Ön Teklif',
+      disclaimer: json['disclaimer'] as String? ?? 'Cihaz bilgileriniz doğruysa fiyat geçerlidir.',
+      revision: json['revision'] as String?,
+      terms: json['terms'] is List ? (json['terms'] as List).whereType<String>().toList() : const [],
+      accepted: json['accepted'] == true,
       currency: json['currency'] as String? ?? 'TRY',
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now(),
@@ -73,6 +97,9 @@ class ListingDetail {
     required this.condition,
     required this.photos,
     required this.offerCount,
+    this.deviceTypeId = '',
+    this.acceptedOfferId,
+    this.sale = const [],
   });
 
   final String id;
@@ -82,6 +109,9 @@ class ListingDetail {
   final Map<String, String> condition;
   final List<String> photos;
   final int offerCount;
+  final String deviceTypeId;
+  final String? acceptedOfferId;
+  final List<SaleStepView> sale;
 
   factory ListingDetail.fromJson(Map<String, dynamic> json) {
     final photos = json['photos'];
@@ -99,8 +129,33 @@ class ListingDetail {
               .toList()
           : const [],
       offerCount: json['offerCount'] is int ? json['offerCount'] as int : 0,
+      deviceTypeId: json['deviceType'] is Map ? (json['deviceType']['id'] as String? ?? '') : '',
+      acceptedOfferId: json['acceptedOfferId'] as String?,
+      sale: saleSteps(json['sale']),
     );
   }
+}
+
+class SaleStepView {
+  const SaleStepView({required this.label, required this.state});
+
+  final String label;
+  final String state;
+
+  factory SaleStepView.fromJson(Map<String, dynamic> json) {
+    return SaleStepView(
+      label: json['label'] as String? ?? '',
+      state: json['state'] as String? ?? 'upcoming',
+    );
+  }
+}
+
+List<SaleStepView> saleSteps(Object? raw) {
+  if (raw is! Map || raw['steps'] is! List) return const [];
+  return (raw['steps'] as List)
+      .whereType<Map>()
+      .map((item) => SaleStepView.fromJson(Map<String, dynamic>.from(item)))
+      .toList();
 }
 
 class StoreProfile {

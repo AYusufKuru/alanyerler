@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   UploadedFiles,
   UseFilters,
@@ -15,7 +16,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateListingDto } from './dto/create-listing.dto';
+import { CreateListingDto, UpdateListingDto } from './dto/create-listing.dto';
 import { MulterExceptionFilter } from './multer-exception.filter';
 import { photoUploadOptions } from './photo-upload';
 import { ListingsService } from './listings.service';
@@ -56,6 +57,21 @@ export class ListingsController {
     },
   ) {
     return this.listings.submit(user, body, files ?? []);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateListingDto,
+  ) {
+    return this.listings.update(user, id, dto);
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(200)
+  cancel(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.listings.cancel(user, id);
   }
 
   @Delete(':id')

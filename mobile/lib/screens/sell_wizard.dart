@@ -38,6 +38,8 @@ class _SellWizardState extends State<SellWizard> {
   final _picker = ImagePicker();
   var _busy = false;
   int? _picking;
+  String _listingId = '';
+  String _deviceLine = '';
   var _sent = false;
   String? _error;
 
@@ -172,7 +174,7 @@ class _SellWizardState extends State<SellWizard> {
       _error = null;
     });
     try {
-      await ListingsApi().submit(
+      final created = await ListingsApi().submit(
         token: widget.token,
         categoryId: category.id,
         deviceTypeId: deviceType.id,
@@ -183,6 +185,8 @@ class _SellWizardState extends State<SellWizard> {
       if (!mounted) return;
       setState(() {
         _busy = false;
+        _listingId = created.id;
+        _deviceLine = _summaryLine(created.title);
         _sent = true;
       });
     } on ApiException catch (error) {
@@ -197,7 +201,11 @@ class _SellWizardState extends State<SellWizard> {
   @override
   Widget build(BuildContext context) {
     if (_sent) {
-      return _SentListing(onDone: () => Navigator.of(context).pop(true));
+      return _SentListing(
+        deviceLine: _deviceLine,
+        onDone: () => Navigator.of(context).pop(''),
+        onOffers: () => Navigator.of(context).pop(_listingId),
+      );
     }
     return Scaffold(
       body: SafeArea(
@@ -494,6 +502,22 @@ class _SellWizardState extends State<SellWizard> {
           ),
       ],
     );
+  }
+
+  String _summaryLine(String serverTitle) {
+    String value(String key) {
+      final raw = _specs[key] ?? '';
+      if (raw == 'Diğer') return _specs['${key}Diger'] ?? '';
+      return raw;
+    }
+
+    final localName = [value('marka'), value('model')].where((part) => part.isNotEmpty).join(' ');
+    final title = serverTitle.isNotEmpty
+        ? serverTitle
+        : (localName.isNotEmpty ? localName : (_deviceType?.name ?? 'Cihazınız'));
+    final storage = value('depolama');
+    if (storage.isEmpty || title.contains(storage)) return title;
+    return '$title – $storage';
   }
 }
 
@@ -844,9 +868,11 @@ class _TypeCard extends StatelessWidget {
 }
 
 class _SentListing extends StatelessWidget {
-  const _SentListing({required this.onDone});
+  const _SentListing({required this.deviceLine, required this.onDone, required this.onOffers});
 
+  final String deviceLine;
   final VoidCallback onDone;
+  final VoidCallback onOffers;
 
   @override
   Widget build(BuildContext context) {
@@ -879,7 +905,7 @@ class _SentListing extends StatelessWidget {
                   ],
                 ),
               ),
-              const Expanded(child: ListingSentView()),
+              Expanded(child: ListingSentView(deviceLine: deviceLine, onOffers: onOffers)),
             ],
           ),
         ),

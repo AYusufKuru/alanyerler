@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -24,6 +25,14 @@ export class CreateOfferDto {
   @IsString()
   @MaxLength(500, { message: 'Not en fazla 500 karakter olabilir.' })
   note?: string;
+
+  @IsOptional()
+  @IsIn(['on', 'kesin'], { message: 'Teklif türü ön teklif veya kesin teklif olmalı.' })
+  kind?: 'on' | 'kesin';
+
+  @IsOptional()
+  @IsIn(['uyusmazlik', 'keyfi'], { message: 'Fiyat düşüşünün nedenini seçin.' })
+  dropReason?: 'uyusmazlik' | 'keyfi';
 }
 
 export class UpdateOfferDto {
@@ -36,4 +45,12 @@ export class UpdateOfferDto {
   @IsString()
   @MaxLength(500, { message: 'Not en fazla 500 karakter olabilir.' })
   note?: string;
+
+  @IsOptional()
+  @IsIn(['on', 'kesin'], { message: 'Teklif türü ön teklif veya kesin teklif olmalı.' })
+  kind?: 'on' | 'kesin';
+
+  @IsOptional()
+  @IsIn(['uyusmazlik', 'keyfi'], { message: 'Fiyat düşüşünün nedenini seçin.' })
+  dropReason?: 'uyusmazlik' | 'keyfi';
 }

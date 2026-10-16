@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../api/messages_api.dart';
+import '../api/offers_api.dart';
 import '../models/message.dart';
 import '../models/offer.dart';
 import '../theme.dart';
+import 'offer_detail_screen.dart';
 
 Future<void> openStoreChat(
   BuildContext context, {
@@ -112,15 +114,55 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _openOffer() async {
+    final offerId = _detail.offerId;
+    if (offerId == null || offerId.isEmpty || _detail.listingId.isEmpty) return;
+    try {
+      final offersApi = OffersApi(ApiClient());
+      final listing = await offersApi.listing(widget.token, _detail.listingId);
+      final offers = await offersApi.offers(widget.token, _detail.listingId);
+      CustomerOffer? match;
+      for (final item in offers) {
+        if (item.id == offerId) match = item;
+      }
+      if (!mounted || match == null) return;
+      final offer = match;
+      final accepted = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (context) => OfferDetailScreen(
+            token: widget.token,
+            listing: listing,
+            offer: offer,
+            highest: offers.isNotEmpty && offers.first.id == offer.id,
+          ),
+        ),
+      );
+      if (accepted == true) await _refresh();
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
+  String get _deviceLine {
+    final title = _detail.listingTitle;
+    final storage = _detail.storage;
+    if (storage.isEmpty || title.contains(storage)) return title;
+    return '$title · $storage';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(_detail.storeName),
-            Text(_detail.listingTitle, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+            Flexible(
+              child: Text(_detail.storeName, overflow: TextOverflow.ellipsis),
+            ),
+            if (_detail.verified) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 18),
+            ],
           ],
         ),
         actions: [
@@ -132,17 +174,40 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          if (_detail.offerPrice != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Teklif: ${formatTry(_detail.offerPrice!)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
+          Material(
+            color: const Color(0xFFF3F6FB),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_deviceLine, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  if (_detail.offerPrice != null) ...[
+                    const SizedBox(height: 2),
+                    Text('Teklif ${formatTry(_detail.offerPrice!)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ],
+                  if (_detail.offerId != null && _detail.offerId!.isNotEmpty)
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: _openOffer,
+                      child: const Text('Teklifi Gör'),
+                    ),
+                  if (_detail.offerAccepted)
+                    const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 16),
+                        SizedBox(width: 4),
+                        Text('Teklif Kabul Edildi', style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                ],
               ),
             ),
+          ),
           Expanded(
             child: ListView(
               controller: _scroll,

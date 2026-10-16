@@ -24,4 +24,9 @@ export class AdminListingsController {
   close(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.listings.close(user, id);
   }
+
+  @Post(':id/sale')
+  advanceSale(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.listings.advanceSale(user, id);
+  }
 }

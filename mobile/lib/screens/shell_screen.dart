@@ -3,16 +3,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
-import '../api/auth_api.dart';
 import '../api/catalog_api.dart';
 import '../api/messages_api.dart';
 import '../models/catalog.dart';
+import '../models/offer.dart';
 import '../session/session_controller.dart';
 import '../theme.dart';
 import 'home_screen.dart';
 import 'messages_screen.dart';
 import 'notifications_screen.dart';
 import 'offers_screen.dart';
+import 'profile_screen.dart';
 import 'sell_wizard.dart';
 
 class ShellScreen extends StatefulWidget {
@@ -93,7 +94,9 @@ class _ShellScreenState extends State<ShellScreen> {
           listings.any((listing) {
             final current = _listings.where((item) => item.id == listing.id);
             if (current.isEmpty) return true;
-            return current.first.offerCount != listing.offerCount || current.first.status != listing.status;
+            return current.first.offerCount != listing.offerCount ||
+                current.first.status != listing.status ||
+                current.first.highestOffer != listing.highestOffer;
           });
       if (!changedListings && nextNotes == _notificationCount && nextUnread == _messageUnread) return;
       setState(() {
@@ -109,8 +112,8 @@ class _ShellScreenState extends State<ShellScreen> {
   Future<void> _openSell([CategoryModel? category]) async {
     final token = SessionScope.of(context).token;
     if (token == null) return;
-    final submitted = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
+    final listingId = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
         builder: (context) => SellWizard(
           categories: _categories,
           token: token,
@@ -118,16 +121,21 @@ class _ShellScreenState extends State<ShellScreen> {
         ),
       ),
     );
-    if (submitted == true && mounted) {
-      setState(() => _tab = 1);
-      await _load();
-    }
+    if (listingId == null || !mounted) return;
+    setState(() => _tab = 1);
+    await _load();
+    if (listingId.isEmpty || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => OffersScreen(token: token, listingId: listingId),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
-    final user = session.user;
     return Scaffold(
       body: IndexedStack(
         index: _tab,
@@ -167,9 +175,7 @@ class _ShellScreenState extends State<ShellScreen> {
             },
           ),
           MessagesScreen(token: session.token ?? ''),
-          _ProfileTab(
-            name: user?.name ?? '',
-            email: user?.email ?? '',
+          ProfileScreen(
             token: session.token ?? '',
             onLogout: session.logout,
           ),
@@ -332,7 +338,7 @@ class _SellSlot extends StatelessWidget {
   }
 }
 
-class _ListingsTab extends StatelessWidget {
+class _ListingsTab extends StatefulWidget {
   const _ListingsTab({
     required this.listings,
     required this.loading,
@@ -344,24 +350,60 @@ class _ListingsTab extends StatelessWidget {
   final ValueChanged<ListingSummary> onOpen;
 
   @override
+  State<_ListingsTab> createState() => _ListingsTabState();
+}
+
+class _ListingsTabState extends State<_ListingsTab> {
+  var _filter = 'aktif';
+  Timer? _clock;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final visible = widget.listings.where((listing) => _bucket(listing) == _filter).toList();
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
         children: [
           const Text('Teklifler', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          if (loading)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final item in _filters) ...[
+                  ChoiceChip(
+                    label: Text(item.$2),
+                    selected: _filter == item.$1,
+                    onSelected: (_) => setState(() => _filter = item.$1),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (widget.loading)
             const LinearProgressIndicator()
-          else if (listings.isEmpty)
-            const Text(
-              'Henüz ilanın yok. Cihaz Sat ile ilan oluşturabilirsin.',
-              style: TextStyle(color: AppColors.muted, height: 1.4),
-            )
+          else if (visible.isEmpty)
+            Text(_emptyLabel(_filter), style: const TextStyle(color: AppColors.muted, height: 1.4))
           else
-            for (final listing in listings)
+            for (final listing in visible)
               InkWell(
-                onTap: () => onOpen(listing),
+                onTap: () => widget.onOpen(listing),
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -370,22 +412,25 @@ class _ListingsTab extends StatelessWidget {
                     color: AppColors.canvas,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(listing.title, style: const TextStyle(fontWeight: FontWeight.w800)),
-                            const SizedBox(height: 4),
-                            Text(
-                              _statusLabel(listing),
-                              style: const TextStyle(color: AppColors.muted),
-                            ),
-                          ],
-                        ),
+                      Text(listing.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      if (_specLine(listing).isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(_specLine(listing), style: const TextStyle(color: AppColors.muted)),
+                      ],
+                      const SizedBox(height: 8),
+                      Text(
+                        listing.offerCount == 0 ? 'Henüz teklif yok' : '${listing.offerCount} işletmeden teklif geldi',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      const Icon(Icons.chevron_right, color: AppColors.muted),
+                      if (listing.highestOffer != null) ...[
+                        const SizedBox(height: 2),
+                        Text('En yüksek: ${formatTry(listing.highestOffer!)}'),
+                      ],
+                      const SizedBox(height: 2),
+                      Text(_timeLabel(listing), style: const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
@@ -396,110 +441,41 @@ class _ListingsTab extends StatelessWidget {
   }
 }
 
-String _statusLabel(ListingSummary listing) {
-  if (listing.offerCount > 0 || listing.status == 'teklif_var') {
-    return '${listing.offerCount} teklif geldi';
-  }
+const _filters = [
+  ('aktif', 'Aktif'),
+  ('tamamlanan', 'Tamamlanan'),
+  ('dolan', 'Süresi Dolan'),
+  ('taslak', 'Taslak'),
+];
+
+String _emptyLabel(String filter) {
+  if (filter == 'taslak') return 'Taslak yok. İlan gönderilmeden kaydedilmiyor.';
+  if (filter == 'tamamlanan') return 'Kabul edilmiş teklif yok.';
+  if (filter == 'dolan') return 'Süresi dolan ilan yok.';
+  return 'Aktif ilan yok. Cihaz Sat ile ilan oluşturabilirsin.';
+}
+
+String _specLine(ListingSummary listing) {
+  return [listing.storage, listing.color].where((part) => part.isNotEmpty).join(' · ');
+}
+
+String _bucket(ListingSummary listing) {
+  if (listing.status == 'kabul') return 'tamamlanan';
+  if (listing.status == 'kapatildi') return 'dolan';
+  final ends = listing.offerWindowEndsAt;
+  if (ends != null && !ends.isAfter(DateTime.now())) return 'dolan';
+  return 'aktif';
+}
+
+String _timeLabel(ListingSummary listing) {
+  if (listing.status == 'kabul') return 'Teklif kabul edildi';
   if (listing.status == 'kapatildi') return 'Kapatıldı';
-  return 'Teklif bekleniyor';
+  final ends = listing.offerWindowEndsAt;
+  if (ends == null) return '';
+  final left = ends.difference(DateTime.now());
+  if (left.isNegative || left.inSeconds == 0) return 'Süre doldu';
+  if (left.inHours >= 1) return '${left.inHours} saat kaldı';
+  final minutes = left.inMinutes;
+  return '${minutes < 1 ? 1 : minutes} dakika kaldı';
 }
 
-class _ProfileTab extends StatefulWidget {
-  const _ProfileTab({
-    required this.name,
-    required this.email,
-    required this.token,
-    required this.onLogout,
-  });
-
-  final String name;
-  final String email;
-  final String token;
-  final VoidCallback onLogout;
-
-  @override
-  State<_ProfileTab> createState() => _ProfileTabState();
-}
-
-class _ProfileTabState extends State<_ProfileTab> {
-  final _current = TextEditingController();
-  final _next = TextEditingController();
-  final _api = AuthApi(ApiClient());
-  var _busy = false;
-  String? _message;
-  var _ok = false;
-
-  @override
-  void dispose() {
-    _current.dispose();
-    _next.dispose();
-    super.dispose();
-  }
-
-  Future<void> _change() async {
-    setState(() {
-      _busy = true;
-      _message = null;
-    });
-    try {
-      await _api.changePassword(
-        token: widget.token,
-        currentPassword: _current.text,
-        newPassword: _next.text,
-      );
-      _current.clear();
-      _next.clear();
-      if (!mounted) return;
-      setState(() {
-        _ok = true;
-        _message = 'Şifre güncellendi.';
-      });
-    } on ApiException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _ok = false;
-        _message = error.message;
-      });
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          const Text('Profil', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 16),
-          Text(widget.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text(widget.email, style: const TextStyle(color: AppColors.muted)),
-          const SizedBox(height: 28),
-          const Text('Şifre değiştir', style: TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _current,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Mevcut şifre'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _next,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Yeni şifre'),
-          ),
-          if (_message != null) ...[
-            const SizedBox(height: 8),
-            Text(_message!, style: TextStyle(color: _ok ? const Color(0xFF067647) : const Color(0xFFB42318))),
-          ],
-          const SizedBox(height: 12),
-          PrimaryButton(label: 'Şifreyi kaydet', busy: _busy, onPressed: _change),
-          const SizedBox(height: 24),
-          PrimaryButton(label: 'Çıkış yap', onPressed: widget.onLogout),
-        ],
-      ),
-    );
-  }
-}

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Star, ArrowRight, ArrowUpDown } from 'lucide-react';
+import SaleStatus from './SaleStatus';
 
-export default function OffersList({ device, offers = [], loading, error, onBackToRadar, onSelectOffer, onShowDeviceDetails }) {
+export default function OffersList({ device, offers = [], loading, error, onBackToRadar, onSelectOffer, onShowDeviceDetails, onEdit, onCancel }) {
   const [sortOption, setSortOption] = useState('highest');
 
   const categoryImages = {
@@ -33,11 +34,18 @@ export default function OffersList({ device, offers = [], loading, error, onBack
 
   return (
     <div className="offers-list-view-container">
+      {device?.sale ? <SaleStatus sale={device.sale} /> : null}
       <div className="offers-board-top-nav">
         <button className="wizard-nav-icon-btn" onClick={onBackToRadar} aria-label="Geri">
           <ArrowLeft size={20} />
         </button>
         <h2 className="board-main-title">Gelen Teklifler</h2>
+        {device?.status !== 'kabul' && device?.status !== 'kapatildi' && (
+          <span className="listing-card-actions">
+            <button type="button" onClick={onEdit}>Düzenle</button>
+            <button type="button" onClick={onCancel}>İptal et</button>
+          </span>
+        )}
         <div style={{ width: 38 }} />
       </div>
 
@@ -122,6 +130,7 @@ export default function OffersList({ device, offers = [], loading, error, onBack
                 <div className="bid-price-group">
                   <span className="bid-timestamp">{bid.time}</span>
                   <span className="bid-price-number">{bid.price.toLocaleString('tr-TR')} TL</span>
+                  <span className={`bid-offer-kind ${bid.kind === 'kesin' ? 'kesin' : 'on'}`}>{bid.label || 'Ön Teklif'}</span>
                 </div>
                 <button
                   className="btn-bid-action-view"

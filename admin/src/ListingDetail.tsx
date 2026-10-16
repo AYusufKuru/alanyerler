@@ -28,6 +28,7 @@ const labels: Record<string, string> = {
 }
 
 function statusLabel(status: string) {
+  if (status === 'kabul') return 'Teklif kabul edildi'
   if (status === 'teklif_var') return 'Teklif var'
   if (status === 'kapatildi') return 'Kapatıldı'
   return 'Teklif bekleniyor'
@@ -54,6 +55,8 @@ export function ListingDetail({
   const [stores, setStores] = useState<Store[]>([])
   const [storeId, setStoreId] = useState('')
   const [price, setPrice] = useState('')
+  const [kind, setKind] = useState<'on' | 'kesin'>('on')
+  const [dropReason, setDropReason] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -78,6 +81,8 @@ export function ListingDetail({
   }, [listing.id, token])
 
   const choices = stores.filter((store) => store.active)
+  const existing = offers.find((offer) => offer.store.id === storeId)
+  const replacingLower = Boolean(existing && Number(price) < existing.price)
 
   async function refresh() {
     const [nextOffers, nextListing] = await Promise.all([
@@ -98,6 +103,8 @@ export function ListingDetail({
           listingId: listing.id,
           storeId,
           price: Number(price),
+          kind,
+          ...(dropReason ? { dropReason } : {}),
           note: note.trim() || undefined,
         },
       })
@@ -109,6 +116,16 @@ export function ListingDetail({
       setError(reason instanceof Error ? reason.message : 'Teklif kaydedilemedi.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function advanceSale() {
+    setError('')
+    try {
+      const next = await request<Listing>(`/admin/listings/${listing.id}/sale`, token, { method: 'POST' })
+      onUpdated(next)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Satış durumu ilerletilemedi')
     }
   }
 
@@ -159,8 +176,30 @@ export function ListingDetail({
       <h2>Durum</h2>
       <FieldList values={listing.condition} />
 
+      {listing.sale ? (
+        <>
+          <h2>Satış Durumu</h2>
+          <ol className="sale-steps">
+            {listing.sale.steps.map((step) => (
+              <li key={step.key} className={step.state}>
+                {step.state === 'done' ? '✓ ' : step.state === 'current' ? '• ' : ''}
+                {step.label}
+              </li>
+            ))}
+          </ol>
+          {listing.sale.step !== 'tamam' ? (
+            <button type="button" onClick={() => void advanceSale()}>
+              Sonraki adıma geç
+            </button>
+          ) : null}
+        </>
+      ) : null}
+
       <h2>Teklifler</h2>
-      <p className="hint">Mağazanın bildirdiği tutarı yazın. Aynı mağaza yeniden seçilirse mevcut teklif güncellenir.</p>
+      <p className="hint">
+        Yeni kayıt ön tekliftir: cihaz bilgileri doğruysa fiyat geçerlidir. Kesin teklif, mağazanın fiyatı bağladığını gösterir.
+        Fiyat düşerse nedeni seçilir. Gerekçesiz düşüş ve kesin teklifi düşürmek mağaza puanından 0,2 siler. Puanı olmayan mağazada düşüş sayılır, puan uydurulmaz.
+      </p>
       {error ? <p className="error">{error}</p> : null}
       {offers.length === 0 ? <p>Bu ilana henüz teklif işlenmedi.</p> : null}
       {offers.length > 0 ? (
@@ -169,6 +208,7 @@ export function ListingDetail({
             <tr>
               <th>Mağaza</th>
               <th>Şehir</th>
+              <th>Tür</th>
               <th>Fiyat</th>
               <th>Not</th>
               <th></th>
@@ -180,7 +220,7 @@ export function ListingDetail({
                 key={offer.id}
                 offer={offer}
                 highest={index === 0}
-                closed={listing.status === 'kapatildi'}
+                closed={listing.status === 'kapatildi' || listing.status === 'kabul'}
                 token={token}
                 onChanged={refresh}
                 onRemove={() => remove(offer)}
@@ -191,8 +231,8 @@ export function ListingDetail({
         </table>
       ) : null}
 
-      {listing.status === 'kapatildi' ? (
-        <p>Kapalı ilana yeni teklif eklenmez.</p>
+      {listing.status === 'kapatildi' || listing.status === 'kabul' ? (
+        <p>Bu ilana yeni teklif eklenmez.</p>
       ) : (
         <form className="stack" onSubmit={submit}>
           <label>
@@ -208,6 +248,13 @@ export function ListingDetail({
           </label>
           {choices.length === 0 ? <p>Teklif için önce aktif bir mağaza kaydedin.</p> : null}
           <label>
+            Teklif türü
+            <select value={kind} onChange={(event) => setKind(event.target.value === 'kesin' ? 'kesin' : 'on')}>
+              <option value="on">Ön Teklif</option>
+              <option value="kesin">Kesin Teklif</option>
+            </select>
+          </label>
+          <label>
             Bildirilen fiyat (TL)
             <input
               value={price}
@@ -216,6 +263,16 @@ export function ListingDetail({
               required
             />
           </label>
+          {replacingLower ? (
+            <label>
+              Düşüş nedeni
+              <select value={dropReason} onChange={(event) => setDropReason(event.target.value)} required>
+                <option value="">Seçin</option>
+                <option value="uyusmazlik">Cihaz ilanla uyuşmuyor</option>
+                <option value="keyfi">Gerekçesiz düşüş</option>
+              </select>
+            </label>
+          ) : null}
           <label>
             Panel notu
             <textarea
@@ -225,7 +282,7 @@ export function ListingDetail({
               placeholder="Yalnız panelde görünür"
             />
           </label>
-          <button type="submit" disabled={busy || choices.length === 0}>
+          <button type="submit" disabled={busy || choices.length === 0 || (replacingLower && dropReason === '')}>
             {busy ? 'Kaydediliyor…' : 'Teklifi kaydet'}
           </button>
         </form>
@@ -252,17 +309,31 @@ function OfferRow({
   onError: (message: string) => void
 }) {
   const [price, setPrice] = useState(String(offer.price))
+  const [kind, setKind] = useState<'on' | 'kesin'>(offer.kind)
+  const [dropReason, setDropReason] = useState<'uyusmazlik' | 'keyfi' | ''>('')
   const [note, setNote] = useState(offer.note ?? '')
   const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    setPrice(String(offer.price))
+    setKind(offer.kind)
+    setNote(offer.note ?? '')
+  }, [offer.price, offer.kind, offer.note])
+  const lowered = Number(price) < offer.price
 
-  async function save() {
+  async function save(nextKind = kind) {
     setBusy(true)
     onError('')
     try {
       await request<Offer>(`/admin/offers/${offer.id}`, token, {
         method: 'PATCH',
-        body: { price: Number(price), note },
+        body: {
+          price: Number(price),
+          note,
+          kind: nextKind,
+          ...(Number(price) < offer.price ? { dropReason } : {}),
+        },
       })
+      setDropReason('')
       await onChanged()
     } catch (reason: unknown) {
       onError(reason instanceof Error ? reason.message : 'Teklif güncellenemedi.')
@@ -280,10 +351,33 @@ function OfferRow({
       </td>
       <td>{offer.store.city}</td>
       <td>
+        <div>{offer.label}</div>
+        {offer.openedPrice !== offer.price ? <div>İlk fiyat {money.format(offer.openedPrice)}</div> : null}
+        {offer.store.arbitraryDropCount > 0 ? (
+          <div>Keyfi düşüş: {offer.store.arbitraryDropCount}</div>
+        ) : null}
+      </td>
+      <td>
         {closed ? (
           money.format(offer.price)
         ) : (
-          <input value={price} onChange={(event) => setPrice(event.target.value)} inputMode="decimal" />
+          <>
+            <input value={price} onChange={(event) => setPrice(event.target.value)} inputMode="decimal" />
+            <select value={kind} onChange={(event) => setKind(event.target.value === 'kesin' ? 'kesin' : 'on')}>
+              <option value="on">Ön Teklif</option>
+              <option value="kesin">Kesin Teklif</option>
+            </select>
+            {lowered ? (
+              <select
+                value={dropReason}
+                onChange={(event) => setDropReason(event.target.value === 'keyfi' ? 'keyfi' : event.target.value === 'uyusmazlik' ? 'uyusmazlik' : '')}
+              >
+                <option value="">Düşüş nedeni</option>
+                <option value="uyusmazlik">Cihaz ilanla uyuşmuyor</option>
+                <option value="keyfi">Gerekçesiz düşüş</option>
+              </select>
+            ) : null}
+          </>
         )}
       </td>
       <td>
@@ -295,9 +389,16 @@ function OfferRow({
       </td>
       <td className="actions">
         {closed ? null : (
-          <button type="button" className="text" disabled={busy} onClick={() => void save()}>
-            Güncelle
-          </button>
+          <>
+            <button type="button" className="text" disabled={busy || (lowered && dropReason === '')} onClick={() => void save()}>
+              Güncelle
+            </button>
+            {offer.kind === 'on' ? (
+              <button type="button" className="text" disabled={busy || lowered} onClick={() => void save('kesin')}>
+                Kesinleştir
+              </button>
+            ) : null}
+          </>
         )}
         <button type="button" className="text danger" onClick={() => void onRemove()}>
           Sil

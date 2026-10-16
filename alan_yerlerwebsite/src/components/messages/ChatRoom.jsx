@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Heart, Info, Send } from 'lucide-react';
+import { ArrowLeft, Check, Heart, Info, Send } from 'lucide-react';
 import { loadConversation, sendConversationMessage, setConversationFavorite } from '../../api';
 import { presentThread } from '../../conversation';
 
@@ -9,6 +9,7 @@ export default function ChatRoom({
   onThread,
   onBackToInbox,
   onOpenStoreProfile,
+  onOpenOffer,
 }) {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
@@ -84,6 +85,7 @@ export default function ChatRoom({
             <div className="chat-store-meta-group">
               <div className="chat-store-name-line">
                 <h3>{thread.storeName}</h3>
+                {thread.verified && <Check size={16} className="chat-verified-mark" />}
               </div>
               {thread.city && <span className="chat-status-pulse">{thread.city}</span>}
             </div>
@@ -109,18 +111,27 @@ export default function ChatRoom({
       </div>
 
       <div className="chat-pinned-device-strip">
-        <div className="pinned-left-side">
-          <div className="pinned-device-info-text">
-            <strong>{thread.listingTitle}</strong>
-            {thread.offerPrice != null && (
-              <span>Teklif: {thread.offerPrice.toLocaleString('tr-TR')} TL</span>
-            )}
-            {thread.address && (
-              <span>
-                <a href={mapsUrl} target="_blank" rel="noreferrer">{thread.address}</a>
-              </span>
-            )}
-          </div>
+        <div className="pinned-device-info-text">
+          <strong>{thread.listingTitle}</strong>
+          {thread.offerPrice != null && (
+            <span>Teklif {thread.offerPrice.toLocaleString('tr-TR')} TL</span>
+          )}
+          {thread.offerId && (
+            <button type="button" className="chat-offer-link" onClick={() => onOpenOffer(thread)}>
+              Teklifi Gör
+            </button>
+          )}
+          {thread.offerAccepted && (
+            <span className="chat-offer-accepted">
+              <Check size={14} />
+              Teklif Kabul Edildi
+            </span>
+          )}
+          {thread.address && (
+            <span>
+              <a href={mapsUrl} target="_blank" rel="noreferrer">{thread.address}</a>
+            </span>
+          )}
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import Step4Photos from './Step4Photos';
 import { loadCategories, submitListing } from '../../api';
 import { buildListing } from '../../listingMap';
 import { defaultSpecs } from '../../data/wizardData';
+import ListingReady, { deviceLine } from './ListingReady';
 
 export default function SellWizard({ token, initialCategory, initialSpecs, initialCondition, onCancel, onComplete }) {
   const startCategory = initialCategory || 'laptop';
@@ -27,6 +28,7 @@ export default function SellWizard({ token, initialCategory, initialSpecs, initi
   });
   const [photos, setPhotos] = useState([]);
   const [submitError, setSubmitError] = useState('');
+  const [ready, setReady] = useState(null);
 
   const stepLabels = [
     { num: 1, title: "Cihaz Türü" },
@@ -57,6 +59,7 @@ export default function SellWizard({ token, initialCategory, initialSpecs, initi
       const listing = await submitListing(token, payload, files);
       const deviceRecord = {
         id: listing.id,
+        title: listing.title,
         category,
         specs,
         condition,
@@ -64,11 +67,24 @@ export default function SellWizard({ token, initialCategory, initialSpecs, initi
         status: 'collecting_offers',
         createdAt: listing.createdAt,
       };
-      onComplete(deviceRecord);
+      setReady(deviceRecord);
     } catch (reason) {
       setSubmitError(reason instanceof Error ? reason.message : 'İlan gönderilemedi.');
     }
   };
+
+  if (ready) {
+    return (
+      <div className="wizard-page-view">
+        <div className="wizard-card-box">
+          <ListingReady
+            deviceLine={deviceLine(ready.title, ready.specs)}
+            onOffers={() => onComplete(ready)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="wizard-page-view">

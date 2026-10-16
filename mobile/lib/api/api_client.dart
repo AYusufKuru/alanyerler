@@ -30,8 +30,8 @@ class ApiClient {
     return _send('POST', path, body: body, token: token);
   }
 
-  Future<dynamic> delete(String path, {String? token}) {
-    return _send('DELETE', path, token: token);
+  Future<dynamic> delete(String path, {String? token, Map<String, dynamic>? body}) {
+    return _send('DELETE', path, token: token, body: body);
   }
 
   Future<dynamic> patch(

@@ -1,58 +1,52 @@
-import React from 'react';
-import ValuationCalculator from './ValuationCalculator';
+import React, { useEffect, useState } from 'react';
 
-export default function Hero({ onSelectValuation, onOpenHowItWorks }) {
+const slides = [
+  { src: '/assets/banner.png', alt: 'Cihazının değerini öğren' },
+  { src: '/assets/banner-2.png', alt: 'Kullanmadığın cihazlar değerinde alıcıyla buluşsun' },
+];
+
+export default function Hero({ onStartSelling }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((current) => (current + 1) % slides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const show = (next) => {
+    setIndex((next + slides.length) % slides.length);
+  };
+
   return (
     <section className="hero-wrapper" id="anasayfa">
-      <div className="hero-main-card">
-        {/* Sol Alan */}
-        <div className="hero-left-column">
-          <div className="hero-live-pill">
-            <span className="live-pulse-dot" />
-            <span>📈 3 İşletmeden Yeni Canlı Teklif Geldi!</span>
+      <div className="home-banner-slider">
+        <div className="home-banner-viewport">
+          <div className="home-banner-track" style={{ transform: `translateX(-${index * 100}%)` }}>
+            {slides.map((slide) => (
+              <button key={slide.src} type="button" className="home-banner-slide" onClick={onStartSelling}>
+                <img src={slide.src} alt={slide.alt} />
+              </button>
+            ))}
           </div>
-
-          <h1 className="hero-heading">
-            Cihazını Sat,<br />
-            <span className="gradient-word">En İyi Teklifi Al.</span>
-          </h1>
-
-          <p className="hero-lead-text">
-            Telefon, bilgisayar, oyun konsolu ve donanım parçalarını 120+ onaylı kurumsal esnafa anında sun. Komisyonsuz, elden veya korumalı kargoyla aynı gün nakit al.
-          </p>
-
-          {/* Anında Değerleme Widget */}
-          <ValuationCalculator onSelectValuation={onSelectValuation} />
         </div>
-
-        {/* Sağ Vitrin & Yüzen Canlı Teklifler */}
-        <div className="hero-right-showcase">
-          {/* Teklif 1 */}
-          <div className="floating-quote-bubble quote-top-right">
-            <div className="quote-store-mark">TECH</div>
-            <div className="quote-text-group">
-              <span className="quote-store-name">
-                TechStore ✓ <span style={{ color: '#059669', fontWeight: 800 }}>En Yüksek</span>
-              </span>
-              <span className="quote-store-price">42.500 TL</span>
-            </div>
-          </div>
-
-          {/* Teklif 2 */}
-          <div className="floating-quote-bubble quote-bottom-left">
-            <div className="quote-store-mark giga">GIGA</div>
-            <div className="quote-text-group">
-              <span className="quote-store-name">Giga Bilişim ✓</span>
-              <span className="quote-store-price" style={{ color: '#1D63FF' }}>41.000 TL</span>
-            </div>
-          </div>
-
-          {/* Ana Vitrin Fotoğrafı */}
-          <img 
-            src="/assets/hero-devices.jpg" 
-            alt="Cihazını değerinde sat: Laptop, Telefon, Konsol, Ekran Kartı" 
-            className="hero-main-photo"
-          />
+        <button type="button" className="home-banner-arrow prev" onClick={() => show(index - 1)} aria-label="Önceki">
+          ‹
+        </button>
+        <button type="button" className="home-banner-arrow next" onClick={() => show(index + 1)} aria-label="Sonraki">
+          ›
+        </button>
+        <div className="home-banner-dots">
+          {slides.map((slide, dot) => (
+            <button
+              key={slide.src}
+              type="button"
+              className={dot === index ? 'active' : ''}
+              aria-label={`Banner ${dot + 1}`}
+              onClick={() => show(dot)}
+            />
+          ))}
         </div>
       </div>
     </section>

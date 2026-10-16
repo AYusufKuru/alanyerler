@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
 import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -12,6 +12,16 @@ export class CustomerOffersController {
   @Get('listings/:id/offers')
   forListing(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.offers.forOwner(user, id);
+  }
+
+  @Post('listings/:id/offers/:offerId/accept')
+  @HttpCode(200)
+  accept(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('offerId') offerId: string,
+  ) {
+    return this.offers.accept(user, id, offerId);
   }
 
   @Get('stores/:id')

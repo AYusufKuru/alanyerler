@@ -7,7 +7,7 @@ import '../api/offers_api.dart';
 import '../api_config.dart';
 import '../models/offer.dart';
 import '../theme.dart';
-import 'listing_sent_view.dart';
+import 'listing_edit_screen.dart';
 import 'offer_detail_screen.dart';
 
 class OffersScreen extends StatefulWidget {
@@ -68,6 +68,44 @@ class _OffersScreenState extends State<OffersScreen> {
     }
   }
 
+  bool get _locked {
+    final status = _listing?.status;
+    return status == 'kabul' || status == 'kapatildi';
+  }
+
+  Future<void> _edit() async {
+    final listing = _listing;
+    if (listing == null || _locked) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (context) => ListingEditScreen(token: widget.token, listing: listing),
+      ),
+    );
+    if (saved == true) await _load();
+  }
+
+  Future<void> _cancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('İlanı iptal et'),
+        content: const Text('İlan kapanır ve yeni teklif gelmez. Kayıt silinmez.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('İptal et')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _api.cancelListing(widget.token, widget.listingId);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -96,9 +134,9 @@ class _OffersScreenState extends State<OffersScreen> {
     }
   }
 
-  void _openOffer(ListingDetail listing, CustomerOffer offer, bool highest) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+  Future<void> _openOffer(ListingDetail listing, CustomerOffer offer, bool highest) async {
+    final accepted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
         builder: (context) => OfferDetailScreen(
           token: widget.token,
           listing: listing,
@@ -107,6 +145,7 @@ class _OffersScreenState extends State<OffersScreen> {
         ),
       ),
     );
+    if (accepted == true && mounted) await _load();
   }
 
   void _openListing(ListingDetail listing) {
@@ -132,8 +171,32 @@ class _OffersScreenState extends State<OffersScreen> {
             _OffersHeader(
               title: waiting && closed != true ? 'Teklifler' : 'Gelen Teklifler',
               onBack: () => Navigator.of(context).pop(),
-              onDelete: listing == null ? null : _delete,
+              onEdit: listing == null || _locked ? null : _edit,
+              onCancel: listing == null || _locked ? null : _cancel,
+              onDelete: listing != null && listing.status == 'bekliyor' && _offers.isEmpty ? _delete : null,
             ),
+            if (listing?.sale.isNotEmpty == true)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Satış Durumu', style: TextStyle(fontWeight: FontWeight.w800)),
+                    for (final step in listing!.sale)
+                      Text(
+                        step.state == 'done' ? '✓ ${step.label}' : step.label,
+                        style: TextStyle(
+                          color: step.state == 'done'
+                              ? const Color(0xFF15803D)
+                              : step.state == 'current'
+                                  ? AppColors.blue
+                                  : AppColors.muted,
+                          fontWeight: step.state == 'upcoming' ? FontWeight.w500 : FontWeight.w800,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -144,7 +207,7 @@ class _OffersScreenState extends State<OffersScreen> {
                           : waiting
                               ? closed
                                   ? const _ClosedListing()
-                                  : const ListingSentView()
+                                  : _WaitingOffers(listing: listing)
                               : RefreshIndicator(
                                   onRefresh: _load,
                                   child: ListView(
@@ -207,14 +270,27 @@ class _OffersScreenState extends State<OffersScreen> {
 }
 
 class _OffersHeader extends StatelessWidget {
-  const _OffersHeader({required this.title, required this.onBack, required this.onDelete});
+  const _OffersHeader({
+    required this.title,
+    required this.onBack,
+    required this.onEdit,
+    required this.onCancel,
+    required this.onDelete,
+  });
 
   final String title;
   final VoidCallback onBack;
+  final VoidCallback? onEdit;
+  final VoidCallback? onCancel;
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final items = <PopupMenuEntry<String>>[
+      if (onEdit != null) const PopupMenuItem(value: 'edit', child: Text('Düzenle')),
+      if (onCancel != null) const PopupMenuItem(value: 'cancel', child: Text('İptal et')),
+      if (onDelete != null) const PopupMenuItem(value: 'delete', child: Text('Sil')),
+    ];
     return SizedBox(
       height: 52,
       child: Row(
@@ -227,10 +303,17 @@ class _OffersHeader extends StatelessWidget {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
           ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline),
-          ),
+          if (items.isEmpty)
+            const SizedBox(width: 48)
+          else
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') onEdit?.call();
+                if (value == 'cancel') onCancel?.call();
+                if (value == 'delete') onDelete?.call();
+              },
+              itemBuilder: (context) => items,
+            ),
         ],
       ),
     );
@@ -420,6 +503,14 @@ class _OfferCard extends StatelessWidget {
                     formatTry(offer.price),
                     style: const TextStyle(color: Color(0xFF0074FF), fontWeight: FontWeight.w800, fontSize: 18, height: 1.15),
                   ),
+                  Text(
+                    offer.label,
+                    style: TextStyle(
+                      color: offer.kind == 'kesin' ? const Color(0xFF15803D) : const Color(0xFFB45309),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   _DetailsButton(onPressed: onOpen),
                 ],
@@ -490,6 +581,38 @@ class _DetailsButton extends StatelessWidget {
         children: [
           Text('Detayları Gör', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
           Icon(Icons.chevron_right, size: 16),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaitingOffers extends StatelessWidget {
+  const _WaitingOffers({required this.listing});
+
+  final ListingDetail listing;
+
+  @override
+  Widget build(BuildContext context) {
+    final storage = listing.specs['depolama'] ?? '';
+    final line = storage.isEmpty || listing.title.contains(storage)
+        ? listing.title
+        : '${listing.title} – $storage';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+      child: Column(
+        children: [
+          Text(
+            line.isEmpty ? 'İlanınız işletmelerde' : line,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, height: 1.2),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Henüz teklif yok. Teklif toplama süresi 1 saat.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, height: 1.4),
+          ),
         ],
       ),
     );

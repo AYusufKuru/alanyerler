@@ -38,6 +38,12 @@ export function presentConversation(row) {
   };
 }
 
+function deviceLine(title, storage) {
+  const name = title || 'İlan';
+  if (!storage || name.includes(storage)) return name;
+  return `${name} · ${storage}`;
+}
+
 export function presentThread(detail) {
   const store = detail.store || {};
   return {
@@ -48,9 +54,13 @@ export function presentThread(detail) {
     logoUrl: mediaUrl(store.logo),
     city: store.city || '',
     address: store.address || '',
-    listingTitle: detail.listing?.title || 'İlan',
+    listingId: detail.listing?.id || '',
+    listingTitle: deviceLine(detail.listing?.title || 'İlan', detail.listing?.storage),
+    verified: detail.store?.verified === true,
     favorite: detail.favorite === true,
+    offerId: detail.offerId || '',
     offerPrice: typeof detail.offerPrice === 'number' ? detail.offerPrice : null,
+    offerAccepted: detail.offerAccepted === true,
     canSend: detail.canSend !== false,
     messages: (detail.messages || []).map((message) => ({
       id: message.id,

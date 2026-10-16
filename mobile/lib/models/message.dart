@@ -70,20 +70,30 @@ class ConversationDetail {
     required this.id,
     required this.storeId,
     required this.storeName,
+    required this.listingId,
     required this.listingTitle,
     required this.canSend,
     required this.favorite,
     required this.messages,
+    this.storage = '',
+    this.verified = false,
+    this.offerId,
     this.offerPrice,
+    this.offerAccepted = false,
   });
 
   final String id;
   final String storeId;
   final String storeName;
+  final String listingId;
   final String listingTitle;
+  final String storage;
+  final bool verified;
   final bool canSend;
   final bool favorite;
+  final String? offerId;
   final double? offerPrice;
+  final bool offerAccepted;
   final List<ChatMessage> messages;
 
   factory ConversationDetail.fromJson(Map<String, dynamic> json) {
@@ -94,10 +104,15 @@ class ConversationDetail {
       id: json['id'] as String? ?? '',
       storeId: store is Map ? store['id'] as String? ?? '' : '',
       storeName: store is Map ? store['name'] as String? ?? '' : '',
+      verified: store is Map && store['verified'] == true,
+      listingId: listing is Map ? listing['id'] as String? ?? '' : '',
       listingTitle: listing is Map ? listing['title'] as String? ?? '' : '',
+      storage: listing is Map ? listing['storage'] as String? ?? '' : '',
       canSend: json['canSend'] == true,
       favorite: json['favorite'] == true,
+      offerId: json['offerId'] as String?,
       offerPrice: json['offerPrice'] is num ? (json['offerPrice'] as num).toDouble() : null,
+      offerAccepted: json['offerAccepted'] == true,
       messages: messages is List
           ? messages
               .whereType<Map>()

@@ -7,6 +7,7 @@ import { StoresPage } from './StoresPage'
 import { UsersPage } from './UsersPage'
 
 function statusLabel(status: string) {
+  if (status === 'kabul') return 'Teklif kabul edildi'
   if (status === 'teklif_var') return 'Teklif var'
   if (status === 'kapatildi') return 'Kapatıldı'
   return 'Teklif bekleniyor'

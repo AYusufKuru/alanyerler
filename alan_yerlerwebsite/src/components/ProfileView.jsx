@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { User, ShieldCheck, Tag, Plus, ArrowRight, Trash2, Heart, PhoneCall, CheckCircle } from 'lucide-react';
-import { changePassword, deleteListing, loadListings, loadOffers, mediaUrl, saveSession } from '../api';
+import { cancelListing, changePassword, deleteListing, loadListings, loadOffers, mediaUrl, saveSession } from '../api';
+import ListingEdit from './offers/ListingEdit';
+import AccountPanel from './AccountPanel';
 
 export default function ProfileView({ user, token, onSession, onLogout, onStartWizard, onGoToOffers, onGoToMessages, onShowToast }) {
   const [activeSubTab, setActiveSubTab] = useState('listings');
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -39,6 +42,17 @@ export default function ProfileView({ user, token, onSession, onLogout, onStartW
       active = false;
     };
   }, [token]);
+
+  const handleCancelDevice = async (id) => {
+    if (!window.confirm('İlan iptal edilsin mi? Yeni teklif gelmez.')) return;
+    try {
+      await cancelListing(token, id);
+      setDevices((current) => current.map((item) => item.id === id ? { ...item, status: 'kapatildi' } : item));
+      onShowToast('İlan iptal edildi.');
+    } catch (reason) {
+      onShowToast(reason instanceof Error ? reason.message : 'İlan iptal edilemedi.');
+    }
+  };
 
   const handleDeleteDevice = async (id) => {
     try {
@@ -74,7 +88,6 @@ export default function ProfileView({ user, token, onSession, onLogout, onStartW
       <div className="user-profile-header-card">
         <div className="user-profile-avatar-large">
           <User size={36} />
-          <span className="user-verified-badge"><ShieldCheck size={14} /></span>
         </div>
 
         <div className="user-profile-meta">
@@ -129,6 +142,14 @@ export default function ProfileView({ user, token, onSession, onLogout, onStartW
           <span>Takip Edilen Mağazalar</span>
         </button>
 
+        <button
+          className={`profile-tab-pill ${activeSubTab === 'account' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('account')}
+        >
+          <User size={16} />
+          <span>Hesabım</span>
+        </button>
+
         <button 
           className={`profile-tab-pill ${activeSubTab === 'security' ? 'active' : ''}`}
           onClick={() => setActiveSubTab('security')}
@@ -139,7 +160,20 @@ export default function ProfileView({ user, token, onSession, onLogout, onStartW
       </div>
 
       {/* İlanlarım Sekmesi */}
-      {activeSubTab === 'listings' && (
+      {activeSubTab === 'listings' && editing && (
+        <ListingEdit
+          token={token}
+          listing={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => {
+            setDevices((current) => current.map((item) => item.id === saved.id ? { ...item, ...saved } : item));
+            setEditing(null);
+            onShowToast('İlan güncellendi.');
+          }}
+        />
+      )}
+
+      {activeSubTab === 'listings' && !editing && (
         <div className="profile-listings-stack">
           {loading ? (
             <div className="profile-empty-card">
@@ -169,6 +203,7 @@ export default function ProfileView({ user, token, onSession, onLogout, onStartW
               ].filter(Boolean).join(' • ');
               const photo = mediaUrl(dev.photos?.[0]?.path) || categoryImages[dev.category?.slug] || categoryImages.bilgisayar;
               const canDelete = dev.status === 'bekliyor' && !dev.offerCount;
+              const canChange = dev.status !== 'kabul' && dev.status !== 'kapatildi';
               return (
               <div key={dev.id} className="profile-device-item-card">
                 <div className="device-item-thumb-box">
@@ -210,6 +245,13 @@ export default function ProfileView({ user, token, onSession, onLogout, onStartW
                     <ArrowRight size={15} />
                   </button>
 
+                  {canChange && (
+                    <div className="listing-card-actions">
+                      <button type="button" onClick={() => setEditing(dev)}>Düzenle</button>
+                      <button type="button" onClick={() => handleCancelDevice(dev.id)}>İptal et</button>
+                    </div>
+                  )}
+
                   {canDelete && (
                     <button 
                       className="btn-delete-listing"
@@ -225,6 +267,10 @@ export default function ProfileView({ user, token, onSession, onLogout, onStartW
             })
           )}
         </div>
+      )}
+
+      {activeSubTab === 'account' && (
+        <AccountPanel token={token} onLogout={onLogout} />
       )}
 
       {/* Favoriler Sekmesi */}
@@ -285,6 +331,7 @@ function fieldText(values, key) {
 }
 
 function statusLabel(listing) {
+  if (listing.status === 'kabul') return 'Teklif kabul edildi';
   if (listing.status === 'kapatildi') return 'Kapatıldı';
   if (listing.offerCount > 0 || listing.status === 'teklif_var') return 'Teklif var';
   return 'Teklif bekleniyor';

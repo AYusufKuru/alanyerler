@@ -23,6 +23,7 @@ export type Listing = {
   photos: ListingPhoto[]
   offerCount: number
   customer: { id: string; name: string; email: string }
+  sale: { step: string; steps: { key: string; label: string; state: 'done' | 'current' | 'upcoming' }[] } | null
 }
 
 const storageKey = 'alanyerler_admin'
@@ -65,11 +66,25 @@ export type Offer = {
   id: string
   listingId: string
   price: number
+  openedPrice: number
+  kind: 'on' | 'kesin'
+  dropReason: 'uyusmazlik' | 'keyfi' | null
+  label: string
+  disclaimer: string
+  revision: string | null
   currency: string
   note: string | null
   createdAt: string
   updatedAt: string
-  store: { id: string; name: string; city: string; active: boolean }
+  store: {
+    id: string
+    name: string
+    city: string
+    active: boolean
+    rating: number | null
+    baseRating: number | null
+    arbitraryDropCount: number
+  }
 }
 
 export async function api<T>(path: string, token?: string, body?: unknown): Promise<T> {

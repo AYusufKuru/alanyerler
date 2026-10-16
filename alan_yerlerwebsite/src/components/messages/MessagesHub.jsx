@@ -9,6 +9,7 @@ export default function MessagesHub({
   token,
   chatTarget = null,
   onBackToHome,
+  onOpenOffer,
 }) {
   const [subView, setSubView] = useState('inbox');
   const [thread, setThread] = useState(null);
@@ -72,6 +73,7 @@ export default function MessagesHub({
           onThread={setThread}
           onBackToInbox={() => setSubView('inbox')}
           onOpenStoreProfile={() => setSubView('profile')}
+          onOpenOffer={onOpenOffer}
         />
       )}
 

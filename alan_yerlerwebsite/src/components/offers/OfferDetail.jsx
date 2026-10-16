@@ -1,19 +1,42 @@
-import React from 'react';
-import { ArrowLeft, Star, MapPin, ShieldCheck, MessageCircle, Info, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Check, Star } from 'lucide-react';
+import SaleStatus from './SaleStatus';
 
-export default function OfferDetail({ offer, device, onBackToList, onProceedToChat, onShowStoreProfile }) {
+const fallbackTerms = [
+  'Elden teslim',
+  'Cihaz mağazada kontrol edilir',
+  'Ödeme aynı gün',
+  'Teklif toplama süresi 1 saattir',
+];
+
+export default function OfferDetail({ offer, device, onBackToList, onProceedToChat, onAccept }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   if (!offer) return null;
-  const currentOffer = offer;
 
-  const deviceModel = device?.specs?.model || device?.title || 'İlan';
-  const deviceCpu = device?.specs?.cpu || '';
-  const deviceRam = device?.specs?.ram || '';
-  const deviceStorage = device?.specs?.storage || '';
-  const deviceCondition = device?.condition?.cosmeticLabel || '';
+  const terms = offer.terms?.length ? offer.terms : fallbackTerms;
+  const accepted = offer.accepted || device?.acceptedOfferId === offer.id;
+  const otherAccepted = Boolean(device?.acceptedOfferId && device.acceptedOfferId !== offer.id);
+  const rating = offer.rating == null
+    ? ''
+    : offer.reviews == null
+      ? String(offer.rating)
+      : `${offer.rating} · ${offer.reviews} değerlendirme`;
+
+  async function accept() {
+    setBusy(true);
+    setError('');
+    try {
+      await onAccept(offer);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Teklif kabul edilemedi.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="offer-detail-view-container">
-      {/* Üst Bar */}
       <div className="detail-top-nav-bar">
         <button className="wizard-nav-icon-btn" onClick={onBackToList} aria-label="Geri">
           <ArrowLeft size={20} />
@@ -22,137 +45,62 @@ export default function OfferDetail({ offer, device, onBackToList, onProceedToCh
         <div style={{ width: 38 }} />
       </div>
 
-      {/* MAĞAZA VİTRİN VE BAŞLIK BLOĞU (FOTOĞRAF 2 SAĞ EKRAN BİREBİR) */}
-      <div className="detail-store-hero-card">
-        {/* Mağaza İç Mekan Vitrin Fotoğrafı */}
-        <div className="store-cover-image-box">
-          {currentOffer.coverUrl && (
-            <img
-              src={currentOffer.coverUrl}
-              alt=""
-              className="store-cover-photo"
-            />
-          )}
-        </div>
-
-        {/* Mağaza Kimlik Bilgileri */}
-        <div className="store-profile-header-group">
-          <div className="store-avatar-circle">
-            {currentOffer.logoUrl ? <img src={currentOffer.logoUrl} alt="" /> : currentOffer.logo}
-          </div>
-
-          <div className="store-titles-block">
-            <div className="store-name-row">
-              <h3 className="store-name-bold">{currentOffer.storeName}</h3>
-              <span className="verified-blue-badge">✓</span>
-            </div>
-
-            {currentOffer.rating != null && (
-              <div className="store-rating-subline">
-                <Star size={14} className="star-fill" />
-                <span className="rating-score-bold">{currentOffer.rating}</span>
-                {currentOffer.reviews != null && (
-                  <span className="reviews-sub-count">({currentOffer.reviews} değerlendirme)</span>
-                )}
-              </div>
-            )}
-
-            {currentOffer.city && (
-              <div className="store-location-subline">
-                <MapPin size={13} />
-                <span>{currentOffer.city}</span>
-              </div>
-            )}
-          </div>
-
-          <button 
-            className="btn-view-profile-chip" 
-            onClick={() => onShowStoreProfile(currentOffer)}
-          >
-            <span>Profili Gör</span>
-            <ArrowRight size={13} />
-          </button>
-        </div>
-
-        {/* 4 Güven ve Doğrulama Rozetleri */}
-        {currentOffer.badges?.length > 0 && (
-          <div className="store-trust-badges-bar">
-            {currentOffer.badges.map((badge) => (
-              <span className="trust-pill-tag" key={badge}>
-                <ShieldCheck size={13} className="text-blue" />
-                <span>{badge}</span>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* BÜYÜK FİYAT TEKLİF KARTI (FOTOĞRAF 2 BİREBİR) */}
       <div className="special-offer-price-card">
-        <div className="offer-price-header">
-          <span className="offer-exclusive-tag">✨ Sana Özel Teklif</span>
-          <span className="offer-timestamp-text">{currentOffer.time}</span>
-        </div>
-
         <div className="offer-giant-price">
-          {currentOffer.price.toLocaleString('tr-TR')} TL
+          {offer.price.toLocaleString('tr-TR')} TL
         </div>
+        <p className={`offer-kind-line ${offer.kind === 'kesin' ? 'kesin' : 'on'}`}>
+          {offer.label || 'Ön Teklif'}
+        </p>
+        {offer.disclaimer ? <p className="offer-disclaimer">{offer.disclaimer}</p> : null}
+        {offer.revision ? <p className="offer-revision">{offer.revision}</p> : null}
 
-        <button 
-          className="btn-offer-contact-cta"
-          onClick={() => onProceedToChat(currentOffer)}
+        <h3 className="store-name-bold offer-detail-store">{offer.storeName}</h3>
+        {rating && (
+          <p className="offer-detail-rating">
+            <Star size={16} className="star-fill" />
+            <span>{rating}</span>
+          </p>
+        )}
+        {offer.verified && (
+          <p className="offer-detail-verified">
+            <Check size={16} />
+            <span>Doğrulanmış İşletme</span>
+          </p>
+        )}
+
+        {accepted && <SaleStatus sale={device?.sale} />}
+
+        <h4 className="offer-terms-title">Teklif şartları</h4>
+        <ul className="offer-terms-list">
+          {terms.map((term) => <li key={term}>{term}</li>)}
+        </ul>
+
+        {error ? <p className="offer-accept-error">{error}</p> : null}
+        <button
+          type="button"
+          className="btn-offer-accept"
+          disabled={busy || accepted || otherAccepted}
+          onClick={accept}
         >
-          <MessageCircle size={18} />
-          <span>İletişime Geç</span>
+          {accepted ? 'Teklif kabul edildi' : otherAccepted ? 'Başka teklif kabul edildi' : 'Teklifi Kabul Et'}
+        </button>
+        <button
+          type="button"
+          className="btn-offer-message"
+          onClick={() => onProceedToChat(offer)}
+        >
+          Mağazaya Mesaj Gönder
         </button>
       </div>
 
-      {/* TEKLİF VE CİHAZ ÖZELLİKLERİ TABLOSU */}
       <div className="offer-specs-table-card">
-        <h4 className="specs-table-title">Teklif Detayları</h4>
-
+        <h4 className="specs-table-title">Cihaz</h4>
         <div className="specs-table-rows">
           <div className="spec-table-row">
             <span className="spec-field-name">Cihaz</span>
-            <strong className="spec-field-val">{deviceModel}</strong>
+            <strong className="spec-field-val">{device?.specs?.model || device?.title || 'İlan'}</strong>
           </div>
-          {deviceCpu && (
-            <div className="spec-table-row">
-              <span className="spec-field-name">İşlemci</span>
-              <strong className="spec-field-val">{deviceCpu}</strong>
-            </div>
-          )}
-          {deviceRam && (
-            <div className="spec-table-row">
-              <span className="spec-field-name">RAM</span>
-              <strong className="spec-field-val">{deviceRam}</strong>
-            </div>
-          )}
-          {deviceStorage && (
-            <div className="spec-table-row">
-              <span className="spec-field-name">Depolama</span>
-              <strong className="spec-field-val">{deviceStorage}</strong>
-            </div>
-          )}
-          {deviceCondition && (
-            <div className="spec-table-row">
-              <span className="spec-field-name">Durum</span>
-              <strong className="spec-field-val">{deviceCondition}</strong>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* "NASIL DEVAM EDERİM?" BİLGİLENDİRME KUTUSU (FOTOĞRAF 2 BİREBİR) */}
-      <div className="how-to-proceed-guide-card">
-        <div className="guide-icon-wrap">
-          <Info size={20} />
-        </div>
-        <div className="guide-text-wrap">
-          <h5 className="guide-heading">Nasıl devam ederim?</h5>
-          <p className="guide-body-text">
-            İletişime geçerek cihazınızı bu fiyattan satmak için detayları görüşebilirsiniz. İşletme size konum, randevu ve teslimat süreci hakkında bilgi verecektir.
-          </p>
         </div>
       </div>
     </div>

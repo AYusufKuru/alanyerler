@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { photoMimeExtensions } from '../listings/photo-upload';
 import { uploadDir } from '../uploads/upload-path';
 import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
+import { shownRating } from '../offers/offer-terms';
 
 type ImageFile = {
   filename: string;
@@ -40,6 +41,8 @@ function toResponse(store: Store) {
     hours: asLines(store.hours),
     badges: asLines(store.badges),
     rating: store.rating === null ? null : Number(store.rating),
+    shownRating: shownRating(store.rating, store.arbitraryDropCount),
+    arbitraryDropCount: store.arbitraryDropCount,
     reviewCount: store.reviewCount,
     active: store.active,
     createdAt: store.createdAt,

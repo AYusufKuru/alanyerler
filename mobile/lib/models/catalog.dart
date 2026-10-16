@@ -86,12 +86,20 @@ class ListingSummary {
     required this.title,
     required this.status,
     required this.offerCount,
+    this.storage = '',
+    this.color = '',
+    this.highestOffer,
+    this.offerWindowEndsAt,
   });
 
   final String id;
   final String title;
   final String status;
   final int offerCount;
+  final String storage;
+  final String color;
+  final double? highestOffer;
+  final DateTime? offerWindowEndsAt;
 
   factory ListingSummary.fromJson(Map<String, dynamic> json) {
     return ListingSummary(
@@ -99,8 +107,22 @@ class ListingSummary {
       title: json['title'] as String? ?? '',
       status: json['status'] as String? ?? '',
       offerCount: json['offerCount'] is int ? json['offerCount'] as int : 0,
+      storage: _spec(json['specs'], 'depolama', 'storage'),
+      color: _spec(json['specs'], 'renk', 'color'),
+      highestOffer: json['highestOffer'] is num ? (json['highestOffer'] as num).toDouble() : null,
+      offerWindowEndsAt: DateTime.tryParse(json['offerWindowEndsAt'] as String? ?? ''),
     );
   }
+}
+
+String _spec(Object? raw, String key, String fallback) {
+  if (raw is! Map) return '';
+  final value = raw[key] ?? raw[fallback];
+  if (value == 'Diğer') {
+    final typed = raw['${key}Diger'] ?? raw['${fallback}Diger'];
+    return typed is String ? typed : '';
+  }
+  return value is String ? value : '';
 }
 
 List<CatalogField> _fields(Object? raw) {

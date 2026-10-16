@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { shownRating } from '../offers/offer-terms';
 
 const cards = [
   { id: 'phone', slug: 'telefon', name: 'Telefon', subTitle: 'iPhone, Samsung, Xiaomi vb.', image: '/assets/categories/phone.jpg', bgTint: '#F4F7FB', tag: 'Popüler' },
@@ -84,6 +85,7 @@ export class SiteService {
     hours: Prisma.JsonValue;
     badges: Prisma.JsonValue;
     rating: Prisma.Decimal | null;
+    arbitraryDropCount: number;
     reviewCount: number | null;
     active: boolean;
   }) {
@@ -92,7 +94,7 @@ export class SiteService {
       name: store.name,
       logoText: this.initials(store.name),
       verified: store.active,
-      rating: store.rating === null ? null : Number(store.rating),
+      rating: shownRating(store.rating, store.arbitraryDropCount),
       reviewCount: store.reviewCount,
       distance: '',
       city: store.city,

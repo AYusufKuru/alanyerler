@@ -27,6 +27,22 @@ class OffersApi {
     return StoreProfile.fromJson(Map<String, dynamic>.from(result));
   }
 
+  Future<ListingDetail> updateListing(String token, String id, Map<String, String> specs, Map<String, String> condition) async {
+    final result = await _client.patch('/listings/$id', token: token, body: {'specs': specs, 'condition': condition});
+    if (result is! Map) throw ApiException('İlan kaydedilemedi.');
+    return ListingDetail.fromJson(Map<String, dynamic>.from(result));
+  }
+
+  Future<void> cancelListing(String token, String id) async {
+    await _client.post('/listings/$id/cancel', token: token);
+  }
+
+  Future<List<SaleStepView>> accept(String token, String listingId, String offerId) async {
+    final result = await _client.post('/listings/$listingId/offers/$offerId/accept', token: token);
+    if (result is! Map) return const [];
+    return saleSteps(result['sale']);
+  }
+
   Future<void> deleteListing(String token, String id) {
     return _client.delete('/listings/$id', token: token).then((_) {});
   }

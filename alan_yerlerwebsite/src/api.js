@@ -51,6 +51,26 @@ export function register(name, email, password) {
   return postAuth('/auth/register', { name, email, password });
 }
 
+export function loadAccount(token) {
+  return getAuth('/auth/account', token);
+}
+
+export function updateAccount(token, body) {
+  return sendJson('/auth/account', 'PATCH', body, token);
+}
+
+export function loadSales(token) {
+  return getAuth('/auth/account/sales', token);
+}
+
+export function loadAccountPage(key) {
+  return getAuth(`/auth/account/pages/${key}`);
+}
+
+export function deleteAccount(token, password) {
+  return sendJson('/auth/account', 'DELETE', { password }, token);
+}
+
 export function changePassword(token, currentPassword, newPassword) {
   return postAuth('/auth/change-password', { currentPassword, newPassword }, token);
 }
@@ -71,6 +91,10 @@ export function loadListings(token) {
 
 export function loadOffers(token, listingId) {
   return getAuth(`/listings/${listingId}/offers`, token);
+}
+
+export function acceptOffer(token, listingId, offerId) {
+  return sendJson(`/listings/${listingId}/offers/${offerId}/accept`, 'POST', {}, token);
 }
 
 export function loadNotifications(token) {
@@ -100,6 +124,14 @@ export function sendConversationMessage(token, id, body) {
 export function setConversationFavorite(token, id, favorite) {
   if (favorite) return postAuth(`/conversations/${id}/favorite`, {}, token);
   return sendJson(`/conversations/${id}/favorite`, 'DELETE', null, token);
+}
+
+export function updateListing(token, id, body) {
+  return sendJson(`/listings/${id}`, 'PATCH', body, token);
+}
+
+export function cancelListing(token, id) {
+  return sendJson(`/listings/${id}/cancel`, 'POST', {}, token);
 }
 
 export async function deleteListing(token, id) {

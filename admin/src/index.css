@@ -222,3 +222,18 @@ dt {
 dd {
   margin: 0;
 }
+
+.sale-steps {
+  margin: 0 0 16px;
+  padding-left: 18px;
+}
+
+.sale-steps .done {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.sale-steps .current {
+  color: #2f6bff;
+  font-weight: 700;
+}

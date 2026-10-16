@@ -10,8 +10,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OpenConversationDto, SendMessageDto } from './dto/message.dto';
 
 const threadInclude = {
-  store: { select: { id: true, name: true, logo: true, city: true, address: true } },
-  listing: { select: { id: true, title: true, status: true, userId: true } },
+  store: { select: { id: true, name: true, logo: true, city: true, address: true, active: true } },
+  listing: { select: { id: true, title: true, status: true, userId: true, specs: true, acceptedOfferId: true } },
   customer: { select: { id: true, name: true } },
   messages: { orderBy: { createdAt: 'asc' as const } },
 } satisfies Prisma.ConversationInclude;
@@ -168,10 +168,11 @@ export class MessagesService {
             storeId: conversation.storeId,
           },
         },
+        select: { id: true, price: true },
       }),
     ]);
     const fresh = await this.requireThread(id);
-    return this.toThread(fresh, reader, Boolean(favorite), offer ? Number(offer.price) : null);
+    return this.toThread(fresh, reader, Boolean(favorite), offer);
   }
 
   private async requireThread(id: string) {
@@ -248,18 +249,33 @@ export class MessagesService {
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
-  private toThread(conversation: Thread, reader: 'customer' | 'admin', favorite: boolean, offerPrice: number | null) {
+  private toThread(
+    conversation: Thread,
+    reader: 'customer' | 'admin',
+    favorite: boolean,
+    offer: { id: string; price: Prisma.Decimal } | null,
+  ) {
     return {
       id: conversation.id,
-      store: conversation.store,
+      store: {
+        id: conversation.store.id,
+        name: conversation.store.name,
+        logo: conversation.store.logo,
+        city: conversation.store.city,
+        address: conversation.store.address,
+        verified: conversation.store.active,
+      },
       listing: {
         id: conversation.listing.id,
         title: conversation.listing.title,
         status: conversation.listing.status,
+        storage: storageLabel(conversation.listing.specs),
       },
       customer: conversation.customer,
       favorite,
-      offerPrice,
+      offerId: offer?.id ?? null,
+      offerPrice: offer ? Number(offer.price) : null,
+      offerAccepted: Boolean(offer && conversation.listing.acceptedOfferId === offer.id),
       canSend: conversation.listing.status !== ListingStatus.kapatildi,
       messages: conversation.messages.map((message) => ({
         id: message.id,
@@ -273,4 +289,15 @@ export class MessagesService {
       })),
     };
   }
+}
+
+function storageLabel(specs: Prisma.JsonValue) {
+  if (!specs || typeof specs !== 'object' || Array.isArray(specs)) return '';
+  const record = specs as Record<string, unknown>;
+  const raw = record.depolama ?? record.storage;
+  if (raw === 'Diğer') {
+    const typed = record.depolamaDiger ?? record.storageDiger;
+    return typeof typed === 'string' ? typed : '';
+  }
+  return typeof raw === 'string' ? raw : '';
 }

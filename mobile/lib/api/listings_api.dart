@@ -12,7 +12,7 @@ class ListingsApi {
 
   final String _baseUrl;
 
-  Future<void> submit({
+  Future<({String id, String title})> submit({
     required String token,
     required String categoryId,
     required String deviceTypeId,
@@ -33,7 +33,10 @@ class ListingsApi {
       final response = await request.send().timeout(const Duration(seconds: 60));
       final text = await response.stream.bytesToString();
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return;
+        final decoded = text.isEmpty ? null : jsonDecode(text);
+        final id = decoded is Map && decoded['id'] is String ? decoded['id'] as String : '';
+        final title = decoded is Map && decoded['title'] is String ? decoded['title'] as String : '';
+        return (id: id, title: title);
       }
       final decoded = text.isEmpty ? null : jsonDecode(text);
       final message = decoded is Map && decoded['message'] is String

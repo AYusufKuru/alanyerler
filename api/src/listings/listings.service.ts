@@ -6,14 +6,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ListingStatus, Prisma, Role } from '@prisma/client';
+import { ListingStatus, Prisma, Role, SaleStep } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../auth/auth.types';
 import { catalogDeviceType } from '../catalog/catalog';
 import { displayValue, validateFields } from '../catalog/validate-fields';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateListingDto } from './dto/create-listing.dto';
+import { CreateListingDto, UpdateListingDto } from './dto/create-listing.dto';
 import { normalizeUploadedPhoto, photoMimeExtensions } from './photo-upload';
+import { offerWindowHours } from '../offers/offer-terms';
+import { nextSaleStep, saleView } from './sale-steps';
 import { uploadDir } from '../uploads/upload-path';
 
 type UploadedPhoto = {
@@ -26,6 +28,7 @@ const adminInclude = {
   category: true,
   deviceType: true,
   photos: { orderBy: { sortOrder: 'asc' as const } },
+  offers: { orderBy: { price: 'desc' as const }, take: 1, select: { price: true } },
   user: { select: { id: true, name: true, email: true } },
   _count: { select: { offers: true } },
 } satisfies Prisma.ListingInclude;
@@ -34,6 +37,7 @@ const listingInclude = {
   category: true,
   deviceType: true,
   photos: { orderBy: { sortOrder: 'asc' as const } },
+  offers: { orderBy: { price: 'desc' as const }, take: 1, select: { price: true } },
   _count: { select: { offers: true } },
 } satisfies Prisma.ListingInclude;
 
@@ -132,6 +136,9 @@ export class ListingsService {
   async close(actor: AuthUser, id: string) {
     const listing = await this.prisma.listing.findUnique({ where: { id } });
     if (!listing) throw new NotFoundException('İlan bulunamadı.');
+    if (listing.status === ListingStatus.kabul) {
+      throw new BadRequestException('Kabul edilmiş satış kapatılmaz. Satış adımı panelden ilerler.');
+    }
     if (listing.status === ListingStatus.kapatildi) {
       throw new BadRequestException('İlan zaten kapalı.');
     }
@@ -144,6 +151,69 @@ export class ListingsService {
       title: listing.title,
     });
     return this.toAdminResponse(updated);
+  }
+
+  async update(user: AuthUser, id: string, dto: UpdateListingDto) {
+    const listing = await this.findOwned(user, id);
+    this.assertOpen(listing.status);
+    const definition = catalogDeviceType(listing.deviceType.slug);
+    if (!definition) throw new BadRequestException('Bu cihaz türü için form tanımlı değil.');
+    const specs = validateFields(definition.specFields, dto.specs, 'Özellikler');
+    const condition = validateFields(definition.conditionFields, dto.condition, 'Durum');
+    const title = [displayValue(specs, 'marka'), displayValue(specs, 'model')]
+      .filter((part): part is string => Boolean(part))
+      .join(' ');
+    const updated = await this.prisma.listing.update({
+      where: { id: listing.id },
+      data: { specs, condition, title: title || listing.deviceType.name },
+      include: listingInclude,
+    });
+    await this.audit.log(user.id, 'listing.update', 'listing', listing.id, { title: updated.title });
+    return this.toResponse(updated);
+  }
+
+  async advanceSale(actor: AuthUser, id: string) {
+    const listing = await this.prisma.listing.findUnique({ where: { id } });
+    if (!listing) throw new NotFoundException('İlan bulunamadı.');
+    if (listing.status !== ListingStatus.kabul) {
+      throw new BadRequestException('Satış durumu, kabul edilmiş ilanda ilerler.');
+    }
+    const current = listing.saleStep ?? SaleStep.teslimat;
+    const next = nextSaleStep(current);
+    if (!next) throw new BadRequestException('Satış zaten tamamlandı.');
+    const updated = await this.prisma.listing.update({
+      where: { id: listing.id },
+      data: { saleStep: next },
+      include: adminInclude,
+    });
+    const view = saleView(next);
+    const currentLabel = view.steps.find((step) => step.key === next)?.label ?? 'Satış durumu';
+    await this.prisma.notification.create({
+      data: {
+        userId: listing.userId,
+        title: 'Satış durumu',
+        body: currentLabel,
+      },
+    });
+    await this.audit.log(actor.id, 'listing.sale', 'listing', listing.id, { step: next });
+    return this.toAdminResponse(updated);
+  }
+
+  async cancel(user: AuthUser, id: string) {
+    const listing = await this.findOwned(user, id);
+    if (listing.status === ListingStatus.kabul) {
+      throw new BadRequestException('Kabul edilmiş ilan iptal edilmez.');
+    }
+    if (listing.status === ListingStatus.kapatildi) {
+      throw new BadRequestException('İlan zaten iptal edildi.');
+    }
+    const updated = await this.prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: ListingStatus.kapatildi },
+      include: listingInclude,
+    });
+    await this.audit.log(user.id, 'listing.cancel', 'listing', listing.id, { title: listing.title });
+    return this.toResponse(updated);
   }
 
   async remove(user: AuthUser, id: string) {
@@ -159,6 +229,15 @@ export class ListingsService {
         unlink(join(uploadDir(), basename(photo.path))).catch(() => undefined),
       ),
     );
+  }
+
+  private assertOpen(status: ListingStatus) {
+    if (status === ListingStatus.kabul) {
+      throw new BadRequestException('Kabul edilmiş ilan düzenlenmez.');
+    }
+    if (status === ListingStatus.kapatildi) {
+      throw new BadRequestException('İptal edilmiş ilan düzenlenmez.');
+    }
   }
 
   private async prepare(user: AuthUser, dto: CreateListingDto) {
@@ -235,6 +314,10 @@ export class ListingsService {
         sortOrder: photo.sortOrder,
       })),
       offerCount: listing._count.offers,
+      highestOffer: listing.offers[0] ? Number(listing.offers[0].price) : null,
+      offerWindowEndsAt: new Date(listing.createdAt.getTime() + offerWindowHours * 60 * 60 * 1000),
+      acceptedOfferId: listing.acceptedOfferId,
+      sale: listing.status === ListingStatus.kabul ? saleView(listing.saleStep ?? SaleStep.teslimat) : null,
     };
   }
 
