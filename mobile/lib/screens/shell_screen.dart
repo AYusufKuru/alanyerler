@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../api_config.dart';
 import '../api/catalog_api.dart';
 import '../api/messages_api.dart';
 import '../models/catalog.dart';
@@ -163,6 +164,18 @@ class _ShellScreenState extends State<ShellScreen> {
           _ListingsTab(
             listings: _listings,
             loading: _loading,
+            notificationCount: _notificationCount,
+            onNotifications: () async {
+              final token = session.token;
+              if (token == null) return;
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => NotificationsScreen(token: token),
+                ),
+              );
+              if (mounted) await _load();
+            },
+            onSell: () => _openSell(),
             onOpen: (listing) async {
               final token = session.token;
               if (token == null) return;
@@ -174,7 +187,10 @@ class _ShellScreenState extends State<ShellScreen> {
               if (mounted) await _load();
             },
           ),
-          MessagesScreen(token: session.token ?? ''),
+          MessagesScreen(
+            token: session.token ?? '',
+            onOpenOffers: () => setState(() => _tab = 1),
+          ),
           ProfileScreen(
             token: session.token ?? '',
             onLogout: session.logout,
@@ -343,11 +359,17 @@ class _ListingsTab extends StatefulWidget {
     required this.listings,
     required this.loading,
     required this.onOpen,
+    required this.onSell,
+    required this.onNotifications,
+    required this.notificationCount,
   });
 
   final List<ListingSummary> listings;
   final bool loading;
   final ValueChanged<ListingSummary> onOpen;
+  final VoidCallback onSell;
+  final VoidCallback onNotifications;
+  final int notificationCount;
 
   @override
   State<_ListingsTab> createState() => _ListingsTabState();
@@ -374,79 +396,337 @@ class _ListingsTabState extends State<_ListingsTab> {
   @override
   Widget build(BuildContext context) {
     final visible = widget.listings.where((listing) => _bucket(listing) == _filter).toList();
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-        children: [
-          const Text('Teklifler', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
+    final activeCount = widget.listings.where((listing) => _bucket(listing) == 'aktif').length;
+    final doneCount = widget.listings.where((listing) => _bucket(listing) == 'tamamlanan').length;
+    final offerTotal = widget.listings.fold<int>(0, (sum, listing) => sum + listing.offerCount);
+    return ColoredBox(
+      color: const Color(0xFFF5F7FB),
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            Row(
               children: [
-                for (final item in _filters) ...[
-                  ChoiceChip(
-                    label: Text(item.$2),
-                    selected: _filter == item.$1,
-                    onSelected: (_) => setState(() => _filter = item.$1),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (widget.loading)
-            const LinearProgressIndicator()
-          else if (visible.isEmpty)
-            Text(_emptyLabel(_filter), style: const TextStyle(color: AppColors.muted, height: 1.4))
-          else
-            for (final listing in visible)
-              InkWell(
-                onTap: () => widget.onOpen(listing),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.canvas,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                const Text.rich(
+                  TextSpan(
+                    style: TextStyle(fontSize: 26, height: 1, fontWeight: FontWeight.w800, letterSpacing: -0.4),
                     children: [
-                      Text(listing.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                      if (_specLine(listing).isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(_specLine(listing), style: const TextStyle(color: AppColors.muted)),
-                      ],
-                      const SizedBox(height: 8),
-                      Text(
-                        listing.offerCount == 0 ? 'Henüz teklif yok' : '${listing.offerCount} işletmeden teklif geldi',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      if (listing.highestOffer != null) ...[
-                        const SizedBox(height: 2),
-                        Text('En yüksek: ${formatTry(listing.highestOffer!)}'),
-                      ],
-                      const SizedBox(height: 2),
-                      Text(_timeLabel(listing), style: const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700)),
+                      TextSpan(text: 'Alan ', style: TextStyle(color: AppColors.ink)),
+                      TextSpan(text: 'Yerler', style: TextStyle(color: AppColors.blue)),
                     ],
                   ),
                 ),
-              ),
+                const Spacer(),
+                IconButton(
+                  onPressed: widget.onNotifications,
+                  icon: Badge(
+                    isLabelVisible: widget.notificationCount > 0,
+                    smallSize: 8,
+                    backgroundColor: const Color(0xFFEF4444),
+                    child: const Icon(Icons.notifications_none, size: 26, color: AppColors.ink),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text('Teklifler', style: TextStyle(fontSize: 32, height: 1.05, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
+            const SizedBox(height: 6),
+            const Text(
+              'Cihazlarına gelen teklifleri takip et.',
+              style: TextStyle(color: AppColors.muted, fontSize: 15),
+            ),
+            const SizedBox(height: 16),
+            _StatStrip(activeCount: activeCount, offerTotal: offerTotal),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(child: _FilterPill(label: 'Aktif ($activeCount)', selected: _filter == 'aktif', onTap: () => setState(() => _filter = 'aktif'))),
+                const SizedBox(width: 8),
+                Expanded(child: _FilterPill(label: 'Tamamlanan ($doneCount)', selected: _filter == 'tamamlanan', onTap: () => setState(() => _filter = 'tamamlanan'))),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (widget.loading)
+              const LinearProgressIndicator()
+            else if (visible.isEmpty)
+              Text(_emptyLabel(_filter), style: const TextStyle(color: AppColors.muted, height: 1.4))
+            else
+              for (final listing in visible) _OfferCard(listing: listing, onOpen: () => widget.onOpen(listing)),
+            const SizedBox(height: 6),
+            const _NoteCard(
+              icon: Icons.verified_user_outlined,
+              title: 'Karar verirken',
+              body: 'Fiyatla birlikte mağaza puanını ve teslimat koşullarını da incele.',
+            ),
+            const SizedBox(height: 10),
+            _NoteCard(
+              icon: Icons.add,
+              title: 'Başka bir cihazın mı var?',
+              body: 'Yeni cihaz ekle, mağazalardan teklif al.',
+              trailing: const Icon(Icons.chevron_right, color: Color(0xFF8AA0B8)),
+              onTap: widget.onSell,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatStrip extends StatelessWidget {
+  const _StatStrip({required this.activeCount, required this.offerTotal});
+
+  final int activeCount;
+  final int offerTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6EDF5)),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _StatItem(icon: Icons.smartphone_outlined, value: '$activeCount', label: 'Aktif cihaz')),
+          const SizedBox(width: 1, height: 42, child: ColoredBox(color: Color(0xFFE6EDF5))),
+          Expanded(child: _StatItem(icon: Icons.article_outlined, value: '$offerTotal', label: 'Gelen teklif')),
         ],
       ),
     );
   }
 }
 
-const _filters = [
-  ('aktif', 'Aktif'),
-  ('tamamlanan', 'Tamamlanan'),
-  ('dolan', 'Süresi Dolan'),
-  ('taslak', 'Taslak'),
-];
+class _StatItem extends StatelessWidget {
+  const _StatItem({required this.icon, required this.value, required this.label});
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: AppColors.blue, size: 22),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: const TextStyle(fontSize: 22, height: 1, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 3),
+            Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.blue : Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.muted,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OfferCard extends StatelessWidget {
+  const _OfferCard({required this.listing, required this.onOpen});
+
+  final ListingSummary listing;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final specs = _specLine(listing);
+    final photo = mediaUrl(listing.photo);
+    final hasOffers = listing.offerCount > 0;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE6EDF5)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 92,
+                height: 112,
+                decoration: BoxDecoration(color: const Color(0xFFF4F7FB), borderRadius: BorderRadius.circular(16)),
+                clipBehavior: Clip.antiAlias,
+                child: photo.isEmpty
+                    ? const Icon(Icons.smartphone, color: AppColors.blue, size: 36)
+                    : Image.network(photo, fit: BoxFit.contain),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(listing.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                        ),
+                        if (hasOffers && _bucket(listing) == 'aktif')
+                          const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.circle, size: 8, color: AppColors.blue),
+                              SizedBox(width: 4),
+                              Text('Yeni teklif var', style: TextStyle(color: AppColors.blue, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                      ],
+                    ),
+                    if (specs.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(specs, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                    ],
+                    const SizedBox(height: 8),
+                    if (hasOffers)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: const Color(0xFFE7F8EE), borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          '${listing.offerCount} teklif geldi',
+                          style: const TextStyle(color: Color(0xFF159947), fontSize: 12, fontWeight: FontWeight.w800),
+                        ),
+                      )
+                    else ...[
+                      const Text('Teklif bekleniyor', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700)),
+                      if (_timeLabel(listing).isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(_timeLabel(listing), style: const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                      ],
+                    ],
+                    if (listing.highestOffer != null) ...[
+                      const SizedBox(height: 10),
+                      const Text('En yüksek teklif', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                      const SizedBox(height: 2),
+                      Text(formatTry(listing.highestOffer!), style: const TextStyle(color: AppColors.blue, fontSize: 28, height: 1.05, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text('${listing.offerCount} mağazanın teklifini karşılaştır.', style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.blue,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: onOpen,
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Teklifleri İncele', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_forward, size: 18),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoteCard extends StatelessWidget {
+  const _NoteCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+    this.trailing,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE6EDF5)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(color: Color(0xFFEFF4FF), shape: BoxShape.circle),
+                child: Icon(icon, color: AppColors.blue, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(body, style: const TextStyle(color: AppColors.muted, fontSize: 12.5, height: 1.3)),
+                  ],
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 String _emptyLabel(String filter) {
   if (filter == 'taslak') return 'Taslak yok. İlan gönderilmeden kaydedilmiyor.';

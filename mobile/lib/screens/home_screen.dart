@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../category_images.dart';
@@ -112,25 +114,119 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _Hero extends StatelessWidget {
+class _Hero extends StatefulWidget {
   const _Hero({required this.onSell});
 
   final VoidCallback onSell;
 
   @override
+  State<_Hero> createState() => _HeroState();
+}
+
+class _HeroState extends State<_Hero> {
+  static const _slides = [
+    'assets/categories/banner.png',
+    'assets/categories/banner-2.png',
+  ];
+
+  final _page = PageController();
+  Timer? _timer;
+  var _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _go(_index + 1));
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _page.dispose();
+    super.dispose();
+  }
+
+  void _go(int next) {
+    if (!_page.hasClients) return;
+    final page = (next % _slides.length + _slides.length) % _slides.length;
+    _page.animateToPage(page, duration: const Duration(milliseconds: 650), curve: Curves.ease);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 2048 / 768,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: PageView.builder(
+              controller: _page,
+              itemCount: _slides.length,
+              onPageChanged: (index) => setState(() => _index = index),
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: widget.onSell,
+                  child: Image.asset(_slides[index], fit: BoxFit.cover),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            left: 8,
+            child: _BannerArrow(icon: Icons.chevron_left, onTap: () => _go(_index - 1)),
+          ),
+          Positioned(
+            right: 8,
+            child: _BannerArrow(icon: Icons.chevron_right, onTap: () => _go(_index + 1)),
+          ),
+          Positioned(
+            bottom: 10,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var dot = 0; dot < _slides.length; dot++) ...[
+                  if (dot > 0) const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => _go(dot),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: dot == _index ? AppColors.blue : const Color(0x4710233F),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BannerArrow extends StatelessWidget {
+  const _BannerArrow({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: const Color(0xEBFFFFFF),
+      elevation: 2,
+      shadowColor: const Color(0x1F10233F),
+      shape: const CircleBorder(),
       child: InkWell(
-        onTap: onSell,
-        borderRadius: BorderRadius.circular(22),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: Image.asset(
-            'assets/categories/uygulama-slider.png',
-            fit: BoxFit.fitWidth,
-          ),
-        ),
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(width: 34, height: 34, child: Icon(icon, size: 22, color: AppColors.ink)),
       ),
     );
   }

@@ -28,9 +28,10 @@ class SellWizard extends StatefulWidget {
 }
 
 class _SellWizardState extends State<SellWizard> {
-  late CategoryModel? _category = _initialCategory();
+  CategoryModel? _category;
   DeviceTypeModel? _deviceType;
   var _showSubtypes = false;
+  var _enteredFromCategory = false;
   var _step = 0;
   var _specs = <String, String>{};
   var _condition = <String, String>{};
@@ -52,8 +53,24 @@ class _SellWizardState extends State<SellWizard> {
     return null;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    final category = _initialCategory();
+    _category = category;
+    final types = category?.deviceTypes ?? const <DeviceTypeModel>[];
+    if (category == null || types.isEmpty) return;
+    _enteredFromCategory = true;
+    if (types.length == 1) {
+      _deviceType = types.first;
+      _step = 1;
+    } else {
+      _showSubtypes = true;
+    }
+  }
+
   void _back() {
-    if (_step == 0 && _showSubtypes) {
+    if (_step == 0 && _showSubtypes && !_enteredFromCategory) {
       setState(() {
         _showSubtypes = false;
         _deviceType = null;
@@ -61,7 +78,8 @@ class _SellWizardState extends State<SellWizard> {
       });
       return;
     }
-    if (_step == 0) {
+    final singleType = _enteredFromCategory && (_category?.deviceTypes.length ?? 0) <= 1;
+    if (_step == 0 || (_step == 1 && singleType)) {
       Navigator.of(context).pop();
       return;
     }

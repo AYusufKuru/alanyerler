@@ -63,7 +63,7 @@ export default function App() {
     }
     setCurrentView(view);
     if (privateTabs[view]) setActiveTab(privateTabs[view]);
-    else if (view === 'home') setActiveTab('home');
+    else if (view === 'home' || view === 'stores') setActiveTab(view);
   };
 
   const handleLogout = () => {
@@ -164,6 +164,7 @@ export default function App() {
         onScrollToCategories={scrollToCategories}
         onShowToast={showToast}
         session={session}
+        active={activeTab}
         onViewChange={openView}
         onOpenProfile={() => openView('profile')}
         onLogout={handleLogout}
@@ -231,6 +232,11 @@ export default function App() {
               showToast(`${store.storeName || store.name} profili görüntüleniyor.`);
             }}
             onShowToast={showToast}
+            onAddDevice={() => {
+              setWizardInitialCategory(null);
+              openView('wizard');
+            }}
+            onHowItWorks={handleOpenHowItWorks}
           />
         )}
 
@@ -247,6 +253,12 @@ export default function App() {
             }}
             onShowToast={showToast}
             onOpenOffer={handleOpenOffer}
+            onGoOffers={() => openView('offers')}
+            onAddDevice={() => {
+              setWizardInitialCategory(null);
+              openView('wizard');
+            }}
+            onHowItWorks={handleOpenHowItWorks}
           />
         )}
 
@@ -297,7 +309,6 @@ export default function App() {
 
       {/* Footer (Masaüstü) */}
       <Footer 
-        onSelectCategory={handleSelectCategory}
         onOpenHowItWorks={handleOpenHowItWorks}
         onShowToast={showToast}
       />

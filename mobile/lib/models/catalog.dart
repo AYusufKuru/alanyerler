@@ -90,6 +90,7 @@ class ListingSummary {
     this.color = '',
     this.highestOffer,
     this.offerWindowEndsAt,
+    this.photo = '',
   });
 
   final String id;
@@ -100,6 +101,7 @@ class ListingSummary {
   final String color;
   final double? highestOffer;
   final DateTime? offerWindowEndsAt;
+  final String photo;
 
   factory ListingSummary.fromJson(Map<String, dynamic> json) {
     return ListingSummary(
@@ -111,8 +113,17 @@ class ListingSummary {
       color: _spec(json['specs'], 'renk', 'color'),
       highestOffer: json['highestOffer'] is num ? (json['highestOffer'] as num).toDouble() : null,
       offerWindowEndsAt: DateTime.tryParse(json['offerWindowEndsAt'] as String? ?? ''),
+      photo: _firstPhoto(json['photos']),
     );
   }
+}
+
+String _firstPhoto(Object? raw) {
+  if (raw is! List || raw.isEmpty) return '';
+  final first = raw.first;
+  if (first is String) return first;
+  if (first is Map && first['path'] is String) return first['path'] as String;
+  return '';
 }
 
 String _spec(Object? raw, String key, String fallback) {

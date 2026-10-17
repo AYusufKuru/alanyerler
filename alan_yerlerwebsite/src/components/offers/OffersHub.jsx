@@ -15,7 +15,9 @@ export default function OffersHub({
   onBackToHome,
   onOpenChat,
   onShowStoreProfile,
-  onShowToast
+  onShowToast,
+  onAddDevice,
+  onHowItWorks,
 }) {
   const [mode, setMode] = useState(initialMode);
   const [selectedOffer, setSelectedOffer] = useState(null);
@@ -115,7 +117,7 @@ export default function OffersHub({
   };
 
   return (
-    <div className="offers-hub-wrapper">
+    <div className={mode === 'board' ? 'offers-hub-wrapper offers-hub-board' : 'offers-hub-wrapper'}>
       {editing && (
         <ListingEdit
           token={token}
@@ -137,6 +139,8 @@ export default function OffersHub({
           onOpen={openBoardListing}
           onEdit={setEditing}
           onCancel={cancelOwnedListing}
+          onAdd={onAddDevice}
+          onHow={onHowItWorks}
         />
       )}
 

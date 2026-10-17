@@ -3,14 +3,8 @@ import { ArrowRight } from 'lucide-react';
 import { CATEGORIES } from '../data/marketplaceData';
 import { loadSite } from '../api';
 
-const waitingCategories = CATEGORIES.map((cat) => ({
-  ...cat,
-  activeBuyers: 0,
-  avgPriceRange: 'Teklif bekleniyor',
-}));
-
 export default function CategoriesGrid({ onSelectCategory }) {
-  const [categories, setCategories] = useState(waitingCategories);
+  const [categories, setCategories] = useState(CATEGORIES);
 
   useEffect(() => {
     loadSite()
@@ -38,11 +32,6 @@ export default function CategoriesGrid({ onSelectCategory }) {
             style={{ background: cat.bgTint }}
             onClick={() => onSelectCategory(cat)}
           >
-            <div className="card-top-row">
-              <span className="card-buyer-pill">🏪 {cat.activeBuyers} Mağaza</span>
-              <span className="card-tag-pill">{cat.tag}</span>
-            </div>
-
             <div className="card-device-stage">
               <img 
                 src={cat.image} 
@@ -56,7 +45,6 @@ export default function CategoriesGrid({ onSelectCategory }) {
               <div className="card-title-group">
                 <h3>{cat.name}</h3>
                 <p>{cat.subTitle}</p>
-                <div className="card-price-range">Ort. {cat.avgPriceRange}</div>
               </div>
               <div className="card-arrow-circle">
                 <ArrowRight size={16} />

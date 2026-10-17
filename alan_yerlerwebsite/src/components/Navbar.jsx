@@ -3,7 +3,7 @@ import { Bell, User, Plus } from 'lucide-react';
 import { loadNotifications, markNotificationsRead } from '../api';
 import { formatWhen, initials } from '../conversation';
 
-export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowToast, onViewChange, onOpenProfile, session, onLogout }) {
+export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowToast, onViewChange, onOpenProfile, session, onLogout, active = 'home' }) {
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notice, setNotice] = useState('');
@@ -65,12 +65,12 @@ export default function Navbar({ onOpenHowItWorks, onScrollToCategories, onShowT
 
         {/* Desktop Nav */}
         <nav className="nav-links-cluster">
-          <a className="nav-anchor" onClick={() => { if (onViewChange) onViewChange('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Keşfet</a>
+          <a className={active === 'home' ? 'nav-anchor highlight-tab' : 'nav-anchor'} onClick={() => { if (onViewChange) onViewChange('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Keşfet</a>
           <a className="nav-anchor" onClick={onScrollToCategories}>Kategoriler</a>
           <a className="nav-anchor" onClick={onOpenHowItWorks}>Nasıl Çalışır?</a>
-          <a className="nav-anchor highlight-tab" onClick={() => { if (onViewChange) onViewChange('offers'); }}>Teklifler</a>
-          <a className="nav-anchor" onClick={() => { if (onViewChange) onViewChange('messages'); }}>Mesajlar</a>
-          <a className="nav-anchor" onClick={() => { if (onViewChange) onViewChange('stores'); }}>Onaylı Mağazalar</a>
+          <a className={active === 'offers' ? 'nav-anchor highlight-tab' : 'nav-anchor'} onClick={() => { if (onViewChange) onViewChange('offers'); }}>Teklifler</a>
+          <a className={active === 'messages' ? 'nav-anchor highlight-tab' : 'nav-anchor'} onClick={() => { if (onViewChange) onViewChange('messages'); }}>Mesajlar</a>
+          <a className={active === 'stores' ? 'nav-anchor highlight-tab' : 'nav-anchor'} onClick={() => { if (onViewChange) onViewChange('stores'); }}>Onaylı Mağazalar</a>
         </nav>
 
         {/* Actions */}
