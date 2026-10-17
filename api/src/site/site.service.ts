@@ -79,6 +79,8 @@ export class SiteService {
   private storeCard(store: {
     id: string;
     name: string;
+    logo: string | null;
+    cover: string | null;
     city: string;
     address: string;
     about: string;
@@ -92,6 +94,8 @@ export class SiteService {
     return {
       id: store.id,
       name: store.name,
+      logo: store.logo,
+      cover: store.cover,
       logoText: this.initials(store.name),
       verified: store.active,
       rating: shownRating(store.rating, store.arbitraryDropCount),

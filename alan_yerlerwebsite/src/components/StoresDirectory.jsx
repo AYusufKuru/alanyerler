@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Search, MapPin, Star, Clock, MessageSquare, ArrowRight } from 'lucide-react';
-import { loadSite } from '../api';
+import { loadSite, mediaUrl } from '../api';
 
-export default function StoresDirectory({ onStartChat, onShowToast }) {
+export default function StoresDirectory({ onStartChat, onOpenStore }) {
   const [stores, setStores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
@@ -84,9 +84,7 @@ export default function StoresDirectory({ onStartChat, onShowToast }) {
         {filtered.map(store => (
           <div key={store.id} className="store-profile-card">
             <div className="store-head-row">
-              <div className="store-avatar-box">
-                {store.logoText || 'AY'}
-              </div>
+              <StoreMark store={store} />
               <div className="store-head-meta">
                 <div className="store-name-line">
                   <h3 className="store-title">{store.name}</h3>
@@ -134,7 +132,7 @@ export default function StoresDirectory({ onStartChat, onShowToast }) {
 
               <button 
                 className="btn-store-view"
-                onClick={() => onShowToast(`${store.name} mağaza vitrini inceleniyor.`)}
+                onClick={() => onOpenStore(store)}
               >
                 <span>İncele</span>
                 <ArrowRight size={14} />
@@ -145,4 +143,17 @@ export default function StoresDirectory({ onStartChat, onShowToast }) {
       </div>
     </section>
   );
+}
+
+function StoreMark({ store }) {
+  const [failed, setFailed] = useState(false);
+  const src = mediaUrl(store.logo);
+  if (src && !failed) {
+    return (
+      <div className="store-avatar-box">
+        <img src={src} alt="" onError={() => setFailed(true)} />
+      </div>
+    );
+  }
+  return <div className="store-avatar-box">{store.logoText || 'AY'}</div>;
 }

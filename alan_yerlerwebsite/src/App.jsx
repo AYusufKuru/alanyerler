@@ -7,6 +7,7 @@ import CategoriesGrid from './components/CategoriesGrid';
 import HowItWorks from './components/HowItWorks';
 import TrustBanner from './components/TrustBanner';
 import StoresDirectory from './components/StoresDirectory';
+import StoreDetail from './components/StoreDetail';
 import Footer from './components/Footer';
 import MobileBottomNav from './components/MobileBottomNav';
 import Modal from './components/Modal';
@@ -38,6 +39,8 @@ export default function App() {
   const [offersInitialMode, setOffersInitialMode] = useState('radar');
   const [offersFocusId, setOffersFocusId] = useState('');
   const [selectedChatStore, setSelectedChatStore] = useState(null);
+  const [openedStore, setOpenedStore] = useState(null);
+  const [storeBackView, setStoreBackView] = useState('stores');
   const [modalState, setModalState] = useState({ isOpen: false, data: null });
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -48,7 +51,23 @@ export default function App() {
     }, 3200);
   };
 
+  const openStoreDetail = (store, from) => {
+    setOpenedStore(store);
+    setStoreBackView(from);
+    setCurrentView('store');
+    setActiveTab('stores');
+  };
+
+  const closeStoreDetail = () => {
+    const back = storeBackView || 'stores';
+    setOpenedStore(null);
+    setCurrentView(back);
+    if (back === 'home' || back === 'stores') setActiveTab(back);
+    else if (privateTabs[back]) setActiveTab(privateTabs[back]);
+  };
+
   const openView = (view, options = {}) => {
+    if (view !== 'store') setOpenedStore(null);
     if (view === 'messages' && !options.keepChat) setSelectedChatStore(null);
     if (view === 'offers' && !options.keepOffer) {
       setOffersInitialMode('board');
@@ -195,7 +214,7 @@ export default function App() {
 
             <StoresDirectory 
               onStartChat={handleOpenChat}
-              onShowToast={showToast}
+              onOpenStore={(store) => openStoreDetail(store, 'home')}
             />
           </>
         )}
@@ -266,7 +285,15 @@ export default function App() {
         {currentView === 'stores' && (
           <StoresDirectory 
             onStartChat={handleOpenChat}
-            onShowToast={showToast}
+            onOpenStore={(store) => openStoreDetail(store, 'stores')}
+          />
+        )}
+
+        {currentView === 'store' && openedStore && (
+          <StoreDetail
+            store={openedStore}
+            onBack={closeStoreDetail}
+            onStartChat={handleOpenChat}
           />
         )}
 

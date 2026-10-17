@@ -1368,6 +1368,15 @@ body {
   justify-content: center;
   font-size: 0.95rem;
   box-shadow: 0 4px 12px rgba(11, 19, 43, 0.2);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.store-avatar-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .store-head-meta {
@@ -5145,6 +5154,7 @@ body {
   border-radius: var(--radius-lg);
   overflow: visible;
   margin-bottom: 24px;
+  background: #E7EEF8;
 }
 
 .profile-cover-image {
@@ -5171,6 +5181,13 @@ body {
   justify-content: center;
   border: 3.5px solid #fff;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.profile-avatar-overlay img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .profile-verified-tick {
@@ -5432,6 +5449,9 @@ body {
 
 .day-name {
   color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .hours-val {
