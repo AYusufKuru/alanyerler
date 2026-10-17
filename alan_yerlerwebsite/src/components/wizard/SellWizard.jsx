@@ -134,8 +134,8 @@ export default function SellWizard({ token, initialCategory, initialSpecs, initi
               onSelectCategory={(id) => {
                 setCategory(id);
                 setSpecs(defaultSpecs(id));
+                setCurrentStep(2);
               }}
-              onNext={handleNext}
             />
           )}
 

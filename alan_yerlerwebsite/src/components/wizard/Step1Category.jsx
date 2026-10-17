@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowRight, Check } from 'lucide-react';
 import { WIZARD_CATEGORIES } from '../../data/wizardData';
 
-export default function Step1Category({ selectedCategory, onSelectCategory, onNext }) {
+export default function Step1Category({ selectedCategory, onSelectCategory }) {
   return (
     <div className="wizard-substep-block">
       <div className="wizard-substep-head">
@@ -20,6 +20,7 @@ export default function Step1Category({ selectedCategory, onSelectCategory, onNe
               key={cat.id}
               className={`wizard-cat-tile ${isSelected ? 'selected' : ''}`}
               onClick={() => onSelectCategory(cat.id)}
+              role="button"
             >
               <div className="wizard-cat-icon-container">
                 <img src={cat.image} alt={cat.name} className="wizard-cat-image" />
@@ -36,17 +37,6 @@ export default function Step1Category({ selectedCategory, onSelectCategory, onNe
             </div>
           );
         })}
-      </div>
-
-      <div className="wizard-footer-action-bar">
-        <button 
-          className="wizard-primary-submit-btn"
-          disabled={!selectedCategory}
-          onClick={onNext}
-        >
-          <span>Devam Et</span>
-          <ArrowRight size={18} />
-        </button>
       </div>
     </div>
   );

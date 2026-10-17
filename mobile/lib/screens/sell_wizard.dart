@@ -89,6 +89,27 @@ class _SellWizardState extends State<SellWizard> {
     });
   }
 
+  void _choose(({CategoryModel category, DeviceTypeModel? type, String title, String slug}) choice) {
+    final types = choice.category.deviceTypes;
+    final picked = choice.type ?? (types.length == 1 ? types.first : null);
+    setState(() {
+      _category = choice.category;
+      _deviceType = picked;
+      _specs = {};
+      _condition = {};
+      for (var i = 0; i < _slots.length; i++) {
+        _slots[i] = null;
+      }
+      _error = null;
+      if (picked != null) {
+        _showSubtypes = false;
+        _step = 1;
+      } else if (types.length > 1) {
+        _showSubtypes = true;
+      }
+    });
+  }
+
   void _continue() {
     if (_step == 0 && _deviceType == null) {
       final category = _category;
@@ -312,10 +333,10 @@ class _SellWizardState extends State<SellWizard> {
                 Text(_error!, style: const TextStyle(color: Color(0xFFB42318))),
               ],
               const SizedBox(height: 8),
+              if (_step > 0)
               Row(
                   children: [
-                    if (_step > 0 || _showSubtypes) ...[
-                      SizedBox(
+                    SizedBox(
                         height: 52,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
@@ -330,7 +351,6 @@ class _SellWizardState extends State<SellWizard> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                    ],
                     Expanded(
                       child: SizedBox(
                         height: 52,
@@ -465,16 +485,7 @@ class _SellWizardState extends State<SellWizard> {
               image: deviceTypeImage(choice.slug),
               icon: sellCardIcon(choice.slug),
               selected: selected,
-              onTap: () => setState(() {
-                _category = choice.category;
-                _deviceType = choice.type;
-                _specs = {};
-                _condition = {};
-                for (var i = 0; i < _slots.length; i++) {
-                  _slots[i] = null;
-                }
-                _error = null;
-              }),
+              onTap: () => _choose(choice),
             );
           },
         ),
